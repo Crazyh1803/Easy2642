@@ -25,6 +25,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.easy2642.core.Oktoberfest
+import java.time.LocalDate
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,6 +37,9 @@ import com.easy2642.app.BuildConfig
 import com.easy2642.app.Easy2642App
 import com.easy2642.app.R
 import com.easy2642.app.data.SecureDatabase
+
+/** Set to false to remove the yearly tip reminder (the Settings link stays). */
+private const val TIP_REMINDER_ENABLED = true
 
 private object Routes {
     const val CLAIMS = "claims"
@@ -47,6 +53,14 @@ private object Routes {
 fun AppRoot(app: Easy2642App) {
     var accepted by remember { mutableStateOf(app.settings.disclaimerAccepted) }
     var resetNotice by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    // Shown once a year during Oktoberfest, never in the session where the first-run notice appears.
+    var tipPrompt by remember {
+        mutableStateOf(
+            TIP_REMINDER_ENABLED && app.settings.disclaimerAccepted &&
+                Oktoberfest.shouldPrompt(LocalDate.now(), app.settings.lastTipPromptYear),
+        )
+    }
     val nav = rememberNavController()
     LaunchedEffect(Unit) {
         // Opening the database up front surfaces a key-loss reset right away.
@@ -120,6 +134,24 @@ fun AppRoot(app: Easy2642App) {
                     accepted = true
                 }) { Text("I understand") }
             },
+        )
+    }
+    if (tipPrompt) {
+        val dismiss = {
+            app.settings.lastTipPromptYear = LocalDate.now().year
+            tipPrompt = false
+        }
+        AlertDialog(
+            onDismissRequest = dismiss,
+            title = { Text("O'zapft is!") },
+            text = { Text("Oktoberfest has opened. If 2642 Easy has saved you some paperwork this year, you can buy the developer a beer. Entirely optional; you'll see this at most once a year.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    dismiss()
+                    openUrl(context, Links.TIP)
+                }) { Text("Leave a tip") }
+            },
+            dismissButton = { TextButton(onClick = dismiss) { Text("Not now") } },
         )
     }
     if (resetNotice) {

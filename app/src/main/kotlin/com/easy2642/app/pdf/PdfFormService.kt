@@ -2,6 +2,10 @@ package com.easy2642.app.pdf
 
 import com.easy2642.core.ClaimForm
 import com.easy2642.core.Dd2642FieldMap
+import com.easy2642.core.Signature
+import com.tom_roush.pdfbox.pdmodel.PDPage
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.cos.COSName
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
@@ -54,12 +58,15 @@ class PdfFormService(private val openTemplate: () -> InputStream) {
     }
 
     /**
-     * Writes a filled, flattened form to [out]. The signature field (block 12a) is
-     * left interactive so the claimant can sign by hand or with a CAC.
+     * Writes a filled, flattened form to [out].
+     *
+     * With a [signature], its strokes are drawn into block 12a and the signature field is
+     * removed, leaving no interactive fields. Without one, block 12a stays an open signature
+     * field (used only by the developer harness; the claim flow always signs).
      *
      * @param includeInstructions keep the official instruction page in front of the form page.
      */
-    fun fill(form: ClaimForm, out: File, includeInstructions: Boolean = false): FillResult {
+    fun fill(form: ClaimForm, out: File, signature: Signature? = null, includeInstructions: Boolean = false): FillResult {
         val warnings = mutableListOf<String>()
         openTemplate().use { PDDocument.load(it) }.use { doc ->
             val acro = doc.requireForm()
@@ -76,11 +83,42 @@ class PdfFormService(private val openTemplate: () -> InputStream) {
                 }
                 filled += acro.getField(name)
             }
-            acro.flatten(filled, false)
+            val signed = signature != null && !signature.isBlank
+            if (signed) {
+                val sigField = acro.getField(Dd2642FieldMap.SIGNATURE) ?: error("Template is missing the signature field")
+                val widget = sigField.widgets.first()
+                val page = widget.page ?: doc.getPage(doc.numberOfPages - 1)
+                val rect = widget.rectangle
+                acro.flatten(filled + sigField, false)
+                drawSignature(doc, page, rect, signature!!)
+            } else {
+                acro.flatten(filled, false)
+            }
             if (!includeInstructions && doc.numberOfPages > 1) doc.removePage(0)
             out.parentFile?.mkdirs()
             doc.save(out)
             return FillResult(doc.numberOfPages, warnings)
+        }
+    }
+
+    private fun drawSignature(doc: PDDocument, page: PDPage, rect: PDRectangle, signature: Signature) {
+        val boxW = rect.width - 2 * SIG_PAD_X
+        val boxH = rect.height - 2 * SIG_PAD_Y
+        val left = rect.lowerLeftX + SIG_PAD_X
+        val top = rect.upperRightY - SIG_PAD_Y
+        PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
+            cs.setStrokingColor(0f, 0f, 0f)
+            cs.setLineWidth(0.7f)
+            cs.setLineCapStyle(1)
+            cs.setLineJoinStyle(1)
+            for (stroke in signature.fitInto(boxW, boxH)) {
+                val first = stroke.first()
+                cs.moveTo(left + first.x, top - first.y)
+                // A single point still leaves a dot thanks to the round line cap.
+                if (stroke.size == 1) cs.lineTo(left + first.x + 0.01f, top - first.y)
+                for (pt in stroke.drop(1)) cs.lineTo(left + pt.x, top - pt.y)
+                cs.stroke()
+            }
         }
     }
 
@@ -100,6 +138,8 @@ class PdfFormService(private val openTemplate: () -> InputStream) {
 
     companion object {
         private val HELV: COSName = COSName.getPDFName("Helv")
+        private const val SIG_PAD_X = 4f
+        private const val SIG_PAD_Y = 1f
 
         private val replacements = mapOf(
             '‘' to "'", '’' to "'", '“' to "\"", '”' to "\"",

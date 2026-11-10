@@ -6,6 +6,8 @@ import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -50,26 +52,59 @@ interface ClaimDao {
     suspend fun clear()
 }
 
+@Dao
+interface SignatureDao {
+    @Query("SELECT * FROM signatures ORDER BY signerName")
+    fun signatures(): Flow<List<SignatureEntity>>
+
+    @Upsert
+    suspend fun upsert(s: SignatureEntity)
+
+    @Query("DELETE FROM signatures WHERE id = :id")
+    suspend fun delete(id: String)
+
+    @Query("DELETE FROM signatures")
+    suspend fun clear()
+}
+
 @Database(
-    entities = [SponsorEntity::class, DependentEntity::class, ClaimEntity::class],
-    version = 1,
+    entities = [SponsorEntity::class, DependentEntity::class, ClaimEntity::class, SignatureEntity::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun familyDao(): FamilyDao
     abstract fun claimDao(): ClaimDao
+    abstract fun signatureDao(): SignatureDao
 
     @Transaction
-    open suspend fun replaceAll(sponsor: SponsorEntity?, dependents: List<DependentEntity>, claims: List<ClaimEntity>) {
+    open suspend fun replaceAll(
+        sponsor: SponsorEntity?,
+        dependents: List<DependentEntity>,
+        claims: List<ClaimEntity>,
+        signatures: List<SignatureEntity>,
+    ) {
         familyDao().clearSponsor()
         familyDao().clearDependents()
         claimDao().clear()
+        signatureDao().clear()
         sponsor?.let { familyDao().upsertSponsor(it) }
         dependents.forEach { familyDao().upsertDependent(it) }
         claims.forEach { claimDao().upsert(it) }
+        signatures.forEach { signatureDao().upsert(it) }
     }
 
     companion object {
         const val NAME = "easy2642.db"
+
+        /** Version 2 adds saved signatures. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `signatures` (`id` TEXT NOT NULL, `signerName` TEXT NOT NULL, " +
+                        "`strokesJson` TEXT NOT NULL, PRIMARY KEY(`id`))",
+                )
+            }
+        }
     }
 }

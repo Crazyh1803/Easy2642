@@ -5,10 +5,14 @@ import java.text.Normalizer
 object ClaimFileName {
     private const val MAX_PART = 40
 
-    /** `Claim_DD2642_[PatientLastName]_[Provider]_[YYYYMMDD].pdf` */
-    fun build(patientLastName: String, provider: String, dateOfServiceIso: String): String {
+    /**
+     * `Claim_DD2642_[PatientLastName]_[Provider]_[YYYYMMDD].pdf`, or with a trailing
+     * `_[part]` (e.g. `_Form`, `_Bill`, `_Receipt`) when the claim is saved as separate files.
+     */
+    fun build(patientLastName: String, provider: String, dateOfServiceIso: String, part: String? = null): String {
         val date = Dd2642FieldMap.formDate(dateOfServiceIso).filter(Char::isDigit).ifEmpty { "undated" }
-        return "Claim_DD2642_${part(patientLastName, "Patient")}_${part(provider, "Provider")}_$date.pdf"
+        val suffix = part?.let { "_$it" }.orEmpty()
+        return "Claim_DD2642_${part(patientLastName, "Patient")}_${part(provider, "Provider")}_$date$suffix.pdf"
     }
 
     /** ASCII letters and digits only, so the name is safe on every document provider. */

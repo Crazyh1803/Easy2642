@@ -7,8 +7,11 @@ import com.easy2642.core.Currency
 import com.easy2642.core.Dependent
 import com.easy2642.core.PersonName
 import com.easy2642.core.Relationship
+import com.easy2642.core.SavedSignature
 import com.easy2642.core.Sex
+import com.easy2642.core.Signature
 import com.easy2642.core.Sponsor
+import kotlinx.serialization.json.Json
 
 @Entity(tableName = "sponsor")
 data class SponsorEntity(
@@ -91,5 +94,19 @@ data class ClaimEntity(
             c.id, c.patientId, c.patientName, c.provider, c.dateOfService, c.amountMinor, c.currency.name,
             c.dossierUri, c.isPacketGenerated, c.isFiled, c.filedDate, c.isReimbursed, c.reimbursedDate, c.notes,
         )
+    }
+}
+
+@Entity(tableName = "signatures")
+data class SignatureEntity(
+    @PrimaryKey val id: String,
+    val signerName: String,
+    val strokesJson: String,
+) {
+    fun toModel() = SavedSignature(id, signerName, Json.decodeFromString(Signature.serializer(), strokesJson))
+
+    companion object {
+        fun from(s: SavedSignature) =
+            SignatureEntity(s.id, s.signerName, Json.encodeToString(Signature.serializer(), s.signature))
     }
 }

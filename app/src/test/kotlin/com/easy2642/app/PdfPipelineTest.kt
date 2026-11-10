@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import androidx.test.core.app.ApplicationProvider
 import com.easy2642.app.pdf.Attachment
+import com.easy2642.app.pdf.AttachmentCategory
 import com.easy2642.app.pdf.AttachmentKind
 import com.easy2642.app.pdf.PacketBuilder
 import com.easy2642.app.pdf.PdfFormService
@@ -73,6 +74,68 @@ class PdfPipelineTest {
             assertEquals(1, remaining.size)
             assertTrue(remaining.single() is PDSignatureField)
         }
+    }
+
+    @Test fun signedFormHasNoInteractiveFieldsAndInkInBlock12a() {
+        val unsigned = File(outDir, "unsigned_form.pdf").also { service.fill(SampleData.form, it) }
+        val signed = File(outDir, "signed_form.pdf").also { service.fill(SampleData.form, it, SampleData.signature) }
+        PDDocument.load(signed).use { doc ->
+            val acro = doc.documentCatalog.acroForm
+            assertTrue(acro == null || acro.fieldTree.none { it.fieldType != null })
+            assertTrue(doc.getPage(0).annotations.isEmpty())
+        }
+        // Block 12a is [19,267]-[305,280] in PDF points: it must gain dark pixels, and only it.
+        fun dark(file: File, l: Float, b: Float, r: Float, t: Float): Int {
+            val scale = 3f
+            val pfd = android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+            val bmp = PDDocument.load(file).use { com.tom_roush.pdfbox.rendering.PDFRenderer(it).renderImage(0, scale) }
+            pfd.close()
+            var n = 0
+            for (y in ((792 - t) * scale).toInt() until ((792 - b) * scale).toInt()) {
+                for (x in (l * scale).toInt() until (r * scale).toInt()) {
+                    val c = bmp.getPixel(x, y)
+                    if (Color.red(c) < 110 && Color.green(c) < 110 && Color.blue(c) < 110) n++
+                }
+            }
+            return n
+        }
+        val before = dark(unsigned, 21f, 268f, 303f, 279.5f)
+        val after = dark(signed, 21f, 268f, 303f, 279.5f)
+        assertTrue("signature ink expected in block 12a ($before -> $after)", after > before + 150)
+        // The neighbouring 12b/12c boxes are unchanged.
+        assertEquals(dark(unsigned, 309f, 268f, 591f, 279.5f), dark(signed, 309f, 268f, 591f, 279.5f))
+    }
+
+    @Test fun blankSignatureLeavesTheFieldOpen() {
+        val out = File(outDir, "blank_sig.pdf").also { service.fill(SampleData.form, it, com.easy2642.core.Signature()) }
+        PDDocument.load(out).use { doc ->
+            assertTrue(doc.documentCatalog.acroForm.fieldTree.single { it.fieldType != null } is PDSignatureField)
+        }
+    }
+
+    @Test fun separateFilesSplitByCategory() {
+        val form = File(outDir, "s_form.pdf").also { service.fill(SampleData.form, it, SampleData.signature) }
+        val pdfBill = File(outDir, "s_bill_src.pdf").also { service.fill(ClaimForm(), it, includeInstructions = true) }
+        val attachments = listOf(
+            Attachment(image("s_receipt.jpg", 900, 1600, dark = false, noisy = false), AttachmentKind.IMAGE, "r1", AttachmentCategory.RECEIPT),
+            Attachment(pdfBill, AttachmentKind.PDF, "b1", AttachmentCategory.BILL),
+            Attachment(image("s_bill.jpg", 1200, 1600, dark = false, noisy = false), AttachmentKind.IMAGE, "b2", AttachmentCategory.BILL),
+        )
+        val dir = File(outDir, "separate").apply { mkdirs() }
+        val name = { part: String -> com.easy2642.core.ClaimFileName.build("Sampleton", "Klinik", "2026-02-14", part) }
+        val out = PacketBuilder().buildSeparate(form, attachments, dir, nameFor = name)
+        assertEquals(listOf("DD Form 2642", "Bill", "Receipt / proof of payment"), out.map { it.label })
+        assertEquals(
+            listOf("Claim_DD2642_Sampleton_Klinik_20260214_Form.pdf", "Claim_DD2642_Sampleton_Klinik_20260214_Bill.pdf", "Claim_DD2642_Sampleton_Klinik_20260214_Receipt.pdf"),
+            out.map { it.file.name },
+        )
+        assertEquals(listOf(1, 3, 1), out.map { it.pageCount })
+        assertTrue(out.all { it.withinLimit && it.file.length() == it.sizeBytes })
+        PDDocument.load(out[0].file).use { assertTrue(PDFTextStripper().getText(it).contains("Sampleton, Jordan A")) }
+        PDDocument.load(out[1].file).use { assertFalse(PDFTextStripper().apply { startPage = 3; endPage = 3 }.getText(it).contains("Sampleton")) }
+        // No receipts: only two files.
+        val two = PacketBuilder().buildSeparate(form, attachments.filter { it.category == AttachmentCategory.BILL }, dir, nameFor = name)
+        assertEquals(listOf("DD Form 2642", "Bill"), two.map { it.label })
     }
 
     @Test fun blankAndInstructionVariants() {

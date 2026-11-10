@@ -47,6 +47,7 @@ fun HarnessScreen(app: Easy2642App, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     var form by remember { mutableStateOf(SampleData.form) }
     var includeInstructions by remember { mutableStateOf(false) }
+    var signed by remember { mutableStateOf(true) }
     var output by remember { mutableStateOf<File?>(null) }
     var version by remember { mutableIntStateOf(0) }
     var status by remember { mutableStateOf("Synthetic sample data loaded. Nothing here is saved.") }
@@ -78,12 +79,16 @@ fun HarnessScreen(app: Easy2642App, onClose: () -> Unit) {
                 Switch(includeInstructions, { includeInstructions = it })
                 Text("Keep instruction page", Modifier.padding(start = 12.dp))
             }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(signed, { signed = it })
+                Text("Apply sample signature to block 12a", Modifier.padding(start = 12.dp))
+            }
             Row {
                 Button(onClick = {
                     scope.launch {
                         val file = File(WorkFiles.packets(app), "harness.pdf")
                         val started = System.nanoTime()
-                        val result = runCatching { withContext(Dispatchers.IO) { app.formService.fill(form, file, includeInstructions) } }
+                        val result = runCatching { withContext(Dispatchers.IO) { app.formService.fill(form, file, SampleData.signature.takeIf { signed }, includeInstructions) } }
                         val ms = (System.nanoTime() - started) / 1_000_000
                         result.onSuccess {
                             output = file

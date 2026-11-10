@@ -13,6 +13,7 @@ _Effective date: [set at publication]_
 | Data | Where it lives | Protection |
 | --- | --- | --- |
 | Sponsor and dependent profiles (names, dates of birth, SSN or DoD Benefits Number, address, phone) | An on-device database inside the app's private storage | Encrypted (SQLCipher, AES-256). The database key is itself encrypted by a key held in the Android Keystore |
+| Saved signatures (only if you choose to save one) | Same encrypted database | Same. Delete them under Family, or with Clear All Local Data |
 | Claim tracker entries (provider, date of service, amount, notes, filed/reimbursed status) | Same encrypted database | Same |
 | Working copies of scanned pages, imported images/PDFs and the generated packet | The app's private cache, only while you are preparing a claim | Deleted when you leave the claim and again each time the app starts |
 | App preferences (disclaimer acknowledged, chosen claims folder) | App-private preferences | Contain no personal information |
@@ -23,7 +24,8 @@ Nothing leaves your device unless **you** send it:
 
 - **Saving a packet or backup.** You choose the destination in Android's system file picker. If you choose a cloud provider's folder (for example Google Drive), that provider's app handles the upload under its own privacy policy.
 - **Sharing a packet.** The Android share sheet hands the PDF to the app you pick.
-- **Backup files** are readable, unencrypted JSON and include profile details such as the sponsor's SSN or DBN. Store them only somewhere you trust.
+- **Backup files** are readable, unencrypted JSON and include profile details such as the sponsor's SSN or DBN, and any saved signatures. Store them only somewhere you trust.
+- **Links.** Settings contains links to the developer's website and an optional tip page, and a tip reminder may appear once a year. Tapping a link opens it in your browser; the app sends nothing itself, and those sites have their own privacy policies.
 
 ## Permissions and network
 

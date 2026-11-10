@@ -23,6 +23,14 @@ Before each release, confirm with `aapt2 dump permissions` on the release artifa
 - **Health data:** the free-text illness description, provider names and amounts a user types stay on the device and are not collected.
 - **Regulated medical device:** No.
 
+## Tip link and payments policy
+
+Settings links to `https://buymeacoffee.com/AppsbyDan`, and a dismissible reminder offers the same link at most once a year during Oktoberfest. Tips are voluntary and unlock no feature or content. Google Play's Payments policy restricts directing users to payment methods other than Play billing for in-app features and digital content; a no-benefit tip is commonly tolerated but is a grey area that a reviewer may question, the pop-up more than the Settings link.
+
+- Never tie a tip to any feature, content, badge or ad removal.
+- If a review objects, set `TIP_REMINDER_ENABLED = false` in `app/src/main/kotlin/com/easy2642/app/ui/AppRoot.kt` to drop the reminder, and remove the Settings button if required.
+- In the Data safety form the answers stay "none collected": the link opens in the browser and the app transmits nothing.
+
 ## App content
 
 | Item | Answer |
@@ -46,8 +54,9 @@ Before each release, confirm with `aapt2 dump permissions` on the release artifa
 > 2642 Easy helps military families prepare medical claim packets without the paperwork headache.
 >
 > • Fill in DD Form 2642 from saved family profiles in a couple of minutes
+> • Sign on screen, so a claim never goes out unsigned
 > • Scan itemized bills, receipts and proof of payment with your camera, or import screenshots and PDFs
-> • Get one tidy PDF, form first and attachments after, kept under 10 MB for portal uploads
+> • Get one tidy PDF, or separate form, bill and receipt files, each kept under 10 MB for portal uploads
 > • Save it wherever you choose: device storage, SD card or your cloud drive app
 > • Track every claim: needs filing, awaiting reimbursement, completed
 >

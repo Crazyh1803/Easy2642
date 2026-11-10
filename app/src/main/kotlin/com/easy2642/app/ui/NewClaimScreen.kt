@@ -25,7 +25,10 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -53,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.easy2642.app.Easy2642App
+import com.easy2642.app.pdf.AttachmentCategory
 import com.easy2642.app.pdf.AttachmentKind
 import com.easy2642.app.pdf.PacketBuilder
 import com.easy2642.app.scan.DocumentScan
@@ -60,13 +64,14 @@ import com.easy2642.core.CareType
 import com.easy2642.core.Currency
 import com.easy2642.core.InsuranceEntry
 import com.easy2642.core.OhiType
+import com.easy2642.core.OutputMode
+import com.easy2642.core.Signature
+import com.easy2642.core.SignaturePoint
 import com.easy2642.core.OverseasOhiType
 import com.easy2642.core.PaymentCurrency
 import com.easy2642.core.Relationship
 import com.easy2642.core.SPONSOR_PATIENT_ID
 import com.easy2642.core.Sex
-
-private val STEP_TITLES = listOf("Patient & visit", "Form details", "Supporting documents", "Review & save")
 
 @Composable
 fun NewClaimScreen(app: Easy2642App, onClose: () -> Unit, onOpenFamily: () -> Unit) {
@@ -91,17 +96,17 @@ fun NewClaimScreen(app: Easy2642App, onClose: () -> Unit, onOpenFamily: () -> Un
         }
     }
     LaunchedEffect(state.step) {
-        if (state.step == 3 && state.packet == null) vm.buildPacket()
+        if (state.step == Steps.REVIEW && state.outputs.isEmpty()) vm.buildPacket()
     }
 
     Scaffold(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("${state.step + 1} of 4 · ${STEP_TITLES[state.step]}") },
+                    title = { Text("${state.step + 1} of 5 · ${Steps.TITLES[state.step]}") },
                     navigationIcon = { IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
                 )
-                LinearProgressIndicator(progress = { (state.step + 1) / 4f }, modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(progress = { (state.step + 1) / 5f }, modifier = Modifier.fillMaxWidth())
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -109,10 +114,11 @@ fun NewClaimScreen(app: Easy2642App, onClose: () -> Unit, onOpenFamily: () -> Un
             Surface(tonalElevation = 2.dp) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.End) {
                     when (state.step) {
-                        0 -> Button(enabled = state.visitErrors.isEmpty(), onClick = { vm.goTo(1) }) { Text("Next") }
-                        1, 2 -> Button(enabled = !state.busy, onClick = { vm.goTo(state.step + 1) }) {
-                            Text(if (state.step == 2) "Build packet" else "Next")
-                        }
+                        Steps.VISIT -> Button(enabled = state.visitErrors.isEmpty(), onClick = { vm.goTo(Steps.FORM) }) { Text("Next") }
+                        Steps.FORM -> Button(onClick = { vm.goTo(Steps.DOCUMENTS) }) { Text("Next") }
+                        Steps.DOCUMENTS -> Button(enabled = !state.busy, onClick = { vm.goTo(Steps.SIGN) }) { Text("Next: sign") }
+                        // The packet cannot be created until the form is signed.
+                        Steps.SIGN -> Button(enabled = state.signErrors.isEmpty(), onClick = { vm.goTo(Steps.REVIEW) }) { Text("Build packet") }
                         else -> Button(onClick = onClose) { Text("Done") }
                     }
                 }
@@ -123,9 +129,10 @@ fun NewClaimScreen(app: Easy2642App, onClose: () -> Unit, onOpenFamily: () -> Un
             Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
         ) {
             when (state.step) {
-                0 -> VisitStep(state, vm, onOpenFamily)
-                1 -> FormStep(state, vm)
-                2 -> DocumentsStep(state, vm)
+                Steps.VISIT -> VisitStep(state, vm, onOpenFamily)
+                Steps.FORM -> FormStep(state, vm)
+                Steps.DOCUMENTS -> DocumentsStep(state, vm)
+                Steps.SIGN -> SignStep(state, vm)
                 else -> ReviewStep(app, state, vm)
             }
             Spacer(Modifier.height(24.dp))
@@ -257,11 +264,6 @@ private fun FormStep(state: NewClaimState, vm: NewClaimViewModel) {
         Text("Remember to attach the other insurer's Explanation of Benefits.", style = MaterialTheme.typography.bodySmall)
     }
 
-    SectionTitle("12 · Signature")
-    Text("The signature box is left empty: sign the printed packet by hand, or sign the PDF with your CAC.", style = MaterialTheme.typography.bodySmall)
-    DateField("12b Date signed", f.signedDate, { v -> vm.updateForm { it.copy(signedDate = v) } })
-    Field("12c Signer's relationship to patient", f.signerRelationship, { v -> vm.updateForm { it.copy(signerRelationship = v) } }, supporting = "e.g. Self, Parent, Spouse")
-
     SectionTitle("13 · Overseas claims only")
     ChoiceChips("Payment in", PaymentCurrency.entries, f.paymentCurrency, { it.label }) { v -> vm.updateForm { it.copy(paymentCurrency = v) } }
     YesNo("Did you make payment to the provider?", f.paidProvider) { v -> vm.updateForm { it.copy(paidProvider = v) } }
@@ -292,7 +294,7 @@ private fun DocumentsStep(state: NewClaimState, vm: NewClaimViewModel) {
     }
 
     Text(
-        "Add the itemized bill, pharmacy receipts and proof of payment. They follow the form in the order shown here.",
+        "Add the itemized bill, pharmacy receipts and proof of payment, and mark each one as a bill or a receipt. In a combined packet they follow the form in the order shown here; as separate files, bills and receipts each get their own PDF.",
         style = MaterialTheme.typography.bodyMedium,
     )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
@@ -323,6 +325,11 @@ private fun DocumentsStep(state: NewClaimState, vm: NewClaimViewModel) {
                 IconButton(enabled = i < state.attachments.lastIndex, onClick = { vm.moveAttachment(i, 1) }) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move ${a.label} down") }
                 IconButton(onClick = { vm.removeAttachment(a) }) { Icon(Icons.Filled.Delete, contentDescription = "Remove ${a.label}") }
             }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(horizontal = 16.dp)) {
+                AttachmentCategory.entries.forEach { c ->
+                    androidx.compose.material3.FilterChip(a.category == c, { vm.setCategory(a, c) }, { Text(c.label) })
+                }
+            }
         }
     }
 
@@ -337,6 +344,73 @@ private fun DocumentsStep(state: NewClaimState, vm: NewClaimViewModel) {
 }
 
 @Composable
+private fun SignStep(state: NewClaimState, vm: NewClaimViewModel) {
+    var strokes by remember { mutableStateOf<List<List<SignaturePoint>>>(emptyList()) }
+    var signerName by remember { mutableStateOf("") }
+    var save by remember { mutableStateOf(true) }
+    var drawing by remember { mutableStateOf(false) }
+
+    Text(
+        "Block 12 certifies that the claim is correct. The form must be signed here before the packet can be created.",
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    Text(
+        "The patient signs; a parent or guardian signs for a child under 18.",
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(top = 4.dp),
+    )
+
+    SectionTitle("12a · Signature")
+    val applied = state.signature
+    if (applied != null && !drawing) {
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp)) {
+                Text(if (state.signerName.isBlank()) "Signature applied" else "Signed by ${state.signerName}", style = MaterialTheme.typography.labelLarge)
+                SignaturePreview(applied)
+            }
+        }
+        TextButton(onClick = { strokes = emptyList(); signerName = state.signerName; drawing = true }) { Text("Sign again") }
+    } else {
+        if (state.savedSignatures.isNotEmpty() && !drawing) {
+            Text("Use a saved signature", style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.savedSignatures.forEach { saved ->
+                    androidx.compose.material3.FilterChip(false, { vm.useSavedSignature(saved) }, { Text(saved.signerName) })
+                }
+            }
+            Text("Or sign below", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+        }
+        SignaturePad(strokes, { strokes = it }, Modifier.padding(vertical = 8.dp))
+        Field("Signer's full name", signerName, { signerName = it }, supporting = "Used to label the saved signature")
+        Row(
+            Modifier.fillMaxWidth().toggleable(save, role = Role.Checkbox, onValueChange = { save = it }),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(checked = save, onCheckedChange = null, modifier = Modifier.padding(vertical = 8.dp))
+            Text("Save this signature (encrypted on this device) for future claims", Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyMedium)
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                enabled = !Signature(strokes).isBlank && (!save || signerName.isNotBlank()),
+                onClick = {
+                    vm.applyDrawnSignature(Signature(strokes), signerName, save)
+                    drawing = false
+                },
+            ) { Text("Use this signature") }
+            OutlinedButton(enabled = strokes.isNotEmpty(), onClick = { strokes = emptyList() }) { Text("Clear") }
+            if (drawing && applied != null) TextButton(onClick = { drawing = false }) { Text("Cancel") }
+        }
+    }
+
+    SectionTitle("12b–c")
+    DateField("12b Date signed", state.form.signedDate, { v -> vm.updateForm { it.copy(signedDate = v) } })
+    Field("12c Signer's relationship to patient", state.form.signerRelationship, { v -> vm.updateForm { it.copy(signerRelationship = v) } }, supporting = "e.g. Self, Parent, Spouse")
+    if (state.signErrors.isNotEmpty()) {
+        Text("Still needed: ${state.signErrors.joinToString(", ")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    }
+}
+
+@Composable
 private fun ReviewStep(app: Easy2642App, state: NewClaimState, vm: NewClaimViewModel) {
     val context = LocalContext.current
     var review by remember { mutableStateOf(false) }
@@ -345,9 +419,14 @@ private fun ReviewStep(app: Easy2642App, state: NewClaimState, vm: NewClaimViewM
     val createDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri != null) vm.exportTo(uri, "the location you chose")
     }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) vm.exportToFolder(uri)
+    }
 
-    val packet = state.packet
-    if (packet == null) {
+    ChoiceChips("Save as", OutputMode.entries, state.outputMode, { it.label }) { m -> if (m != null && m != state.outputMode) vm.setOutputMode(m) }
+
+    val outputs = state.outputs
+    if (outputs.isEmpty()) {
         if (state.busy) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 24.dp)) {
                 CircularProgressIndicator()
@@ -359,27 +438,34 @@ private fun ReviewStep(app: Easy2642App, state: NewClaimState, vm: NewClaimViewM
         }
         return
     }
+    val separate = outputs.size > 1
 
     state.savedTo?.let {
         Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
             Text("Saved to $it. The claim is in your tracker under \"Needs Filing\".", modifier = Modifier.padding(16.dp))
         }
     }
-    Text(state.fileName, style = MaterialTheme.typography.titleSmall)
-    Text("${packet.pageCount} page(s) · ${PacketBuilder.formatSize(packet.sizeBytes)}", style = MaterialTheme.typography.bodyMedium)
-    if (!packet.withinLimit) {
-        Text("This packet is larger than the usual 10 MB portal limit even after compression. Remove some pages or split the claim.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+    outputs.forEach { out ->
+        Column(Modifier.padding(vertical = 4.dp)) {
+            Text(out.file.name, style = MaterialTheme.typography.titleSmall)
+            Text("${out.label} · ${out.pageCount} page(s) · ${PacketBuilder.formatSize(out.sizeBytes)}", style = MaterialTheme.typography.bodyMedium)
+            if (!out.withinLimit) {
+                Text("Larger than the usual 10 MB portal limit even after compression. Remove some pages or split the claim.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
     state.warnings.forEach { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
     if (state.formGaps.isNotEmpty()) {
         Text("Left blank on the form: ${state.formGaps.joinToString("; ")}. Go back to fill them in if they apply.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 8.dp)) {
-        Button(enabled = !state.busy, onClick = { review = true }) { Text("Save packet") }
+        Button(enabled = !state.busy, onClick = { review = true }) { Text(if (separate) "Save files" else "Save packet") }
         OutlinedButton(enabled = !state.busy, onClick = { vm.shareIntent()?.let(context::startActivity) }) { Text("Share") }
     }
-    Text("Sign block 12a before submitting: the packet is not valid unsigned.", style = MaterialTheme.typography.bodySmall)
-    PdfPreview(packet.file, state.packetVersion, Modifier.padding(top = 8.dp))
+    outputs.forEach { out ->
+        if (separate) Text(out.label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+        PdfPreview(out.file, state.outputsVersion, Modifier.padding(top = 8.dp))
+    }
 
     if (review) {
         AlertDialog(
@@ -387,18 +473,31 @@ private fun ReviewStep(app: Easy2642App, state: NewClaimState, vm: NewClaimViewM
             title = { Text("Review before saving") },
             text = {
                 Column {
-                    ReviewLine("Destination", folderName?.let { "Claims folder \"$it\", or a location you choose" } ?: "You choose in the next step")
-                    ReviewLine("File name", state.fileName)
-                    ReviewLine("Pages", packet.pageCount.toString())
-                    ReviewLine("Size", PacketBuilder.formatSize(packet.sizeBytes))
+                    ReviewLine(
+                        "Destination",
+                        when {
+                            folderName != null && separate -> "Claims folder \"$folderName\", or another folder you choose"
+                            folderName != null -> "Claims folder \"$folderName\", or a location you choose"
+                            separate -> "A folder you choose in the next step"
+                            else -> "You choose in the next step"
+                        },
+                    )
+                    outputs.forEach { out ->
+                        ReviewLine(if (separate) out.label else "File name", "${out.file.name}\n${out.pageCount} page(s) · ${PacketBuilder.formatSize(out.sizeBytes)}")
+                    }
+                    if (separate) ReviewLine("Total", "${outputs.size} files · ${PacketBuilder.formatSize(outputs.sumOf { it.sizeBytes })}")
                 }
             },
             confirmButton = {
                 Column(horizontalAlignment = Alignment.End) {
                     if (folderName != null) {
-                        TextButton(onClick = { review = false; vm.exportToClaimsFolder() }) { Text("Save to \"$folderName\"") }
+                        TextButton(onClick = { review = false; vm.exportToFolder() }) { Text("Save to \"$folderName\"") }
                     }
-                    TextButton(onClick = { review = false; createDocument.launch(state.fileName) }) { Text("Choose location…") }
+                    if (separate) {
+                        TextButton(onClick = { review = false; pickFolder.launch(null) }) { Text("Choose folder…") }
+                    } else {
+                        TextButton(onClick = { review = false; createDocument.launch(outputs.single().file.name) }) { Text("Choose location…") }
+                    }
                     TextButton(onClick = { review = false }) { Text("Cancel") }
                 }
             },

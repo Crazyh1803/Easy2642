@@ -19,10 +19,23 @@ import kotlin.math.roundToInt
 
 enum class AttachmentKind { IMAGE, PDF }
 
+/** Which of the separate files an attachment belongs to. */
+enum class AttachmentCategory(val label: String, val filePart: String) {
+    BILL("Bill", "Bill"),
+    RECEIPT("Receipt / proof of payment", "Receipt"),
+}
+
 /** A supporting document already copied into the app's private cache. */
-data class Attachment(val file: File, val kind: AttachmentKind, val label: String)
+data class Attachment(
+    val file: File,
+    val kind: AttachmentKind,
+    val label: String,
+    val category: AttachmentCategory = AttachmentCategory.BILL,
+)
 
 data class PacketResult(
+    /** What this file holds, e.g. "Claim packet", "DD Form 2642", "Bill". */
+    val label: String,
     val file: File,
     val pageCount: Int,
     val sizeBytes: Long,
@@ -32,30 +45,61 @@ data class PacketResult(
 )
 
 /**
- * Builds the claim dossier: the filled DD Form 2642 first, then every
- * attachment in order. Image pages are recompressed with progressively
- * stronger settings until the bundle fits [maxBytes].
+ * Builds claim PDFs. Combined: the filled DD Form 2642 first, then every
+ * attachment in order. Separate: the form, the bill pages and the receipt
+ * pages as three files. Image pages are recompressed with progressively
+ * stronger settings until each file fits the size limit.
  */
 class PacketBuilder {
 
     private data class Level(val maxEdgePx: Int, val quality: Int)
 
-    fun build(formPdf: File, attachments: List<Attachment>, out: File, maxBytes: Long = MAX_BYTES): PacketResult {
+    /**
+     * Writes [formPdf] (if any) followed by [attachments] to [out].
+     * @param label stored on the result for display.
+     */
+    fun build(
+        formPdf: File?,
+        attachments: List<Attachment>,
+        out: File,
+        maxBytes: Long = MAX_BYTES,
+        label: String = "Claim packet",
+    ): PacketResult {
+        require(formPdf != null || attachments.isNotEmpty()) { "Nothing to write" }
         val hasImages = attachments.any { it.kind == AttachmentKind.IMAGE }
         var last: PacketResult? = null
         for (level in if (hasImages) LEVELS else LEVELS.take(1)) {
             val pages = assemble(formPdf, attachments, out, level)
             val size = out.length()
-            last = PacketResult(out, pages, size, size <= maxBytes, level.quality.takeIf { hasImages })
+            last = PacketResult(label, out, pages, size, size <= maxBytes, level.quality.takeIf { hasImages })
             if (size <= maxBytes) break
         }
         return last!!
     }
 
-    private fun assemble(formPdf: File, attachments: List<Attachment>, out: File, level: Level): Int {
+    /**
+     * Writes the form, the bill and the receipt/proof of payment as separate PDFs in [dir].
+     * A category with no attachments produces no file.
+     * @param nameFor file name for a part ("Form", "Bill", "Receipt").
+     */
+    fun buildSeparate(
+        formPdf: File,
+        attachments: List<Attachment>,
+        dir: File,
+        maxBytes: Long = MAX_BYTES,
+        nameFor: (String) -> String,
+    ): List<PacketResult> = buildList {
+        add(build(formPdf, emptyList(), File(dir, nameFor("Form")), maxBytes, "DD Form 2642"))
+        for (category in AttachmentCategory.entries) {
+            val items = attachments.filter { it.category == category }
+            if (items.isNotEmpty()) add(build(null, items, File(dir, nameFor(category.filePart)), maxBytes, category.label))
+        }
+    }
+
+    private fun assemble(formPdf: File?, attachments: List<Attachment>, out: File, level: Level): Int {
         val sources = mutableListOf<PDDocument>()
         try {
-            PDDocument.load(formPdf).use { doc ->
+            (formPdf?.let { PDDocument.load(it) } ?: PDDocument()).use { doc ->
                 for (a in attachments) {
                     when (a.kind) {
                         AttachmentKind.IMAGE -> addImagePage(doc, a.file, level)
