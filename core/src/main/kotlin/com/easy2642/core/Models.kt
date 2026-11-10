@@ -253,4 +253,5 @@ data class FamilyBackup(
     val sponsor: Sponsor? = null,
     val dependents: List<Dependent> = emptyList(),
     val claims: List<ClaimRecord> = emptyList(),
+    val signatures: List<SavedSignature> = emptyList(),
 )

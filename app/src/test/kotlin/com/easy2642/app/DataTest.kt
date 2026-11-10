@@ -88,6 +88,51 @@ class DataTest {
         assertEquals(listOf(claim), repo.claims.first())
     }
 
+    @Test fun signaturesSaveReplaceAndBackUp() = runTest {
+        val first = repo.saveSignature("Casey Sampleton", SampleData.signature)
+        val replaced = repo.saveSignature(" casey sampleton ", SampleData.signature.copy(strokes = SampleData.signature.strokes.take(1)))
+        assertEquals(first.id, replaced.id)
+        assertEquals(1, repo.signatures.first().single().signature.strokes.size)
+        repo.saveSignature("Jordan Sampleton", SampleData.signature)
+        val backup = repo.exportBackup()
+        repo.deleteSignature(first.id)
+        assertEquals(listOf("Jordan Sampleton"), repo.signatures.first().map { it.signerName })
+        repo.importBackup(backup)
+        assertEquals(listOf("Casey Sampleton", "Jordan Sampleton"), repo.signatures.first().map { it.signerName })
+        assertEquals(SampleData.signature, repo.signatures.first().last().signature)
+    }
+
+    @Test fun version1BackupStillImports() = runTest {
+        repo.saveSignature("Casey Sampleton", SampleData.signature)
+        repo.importBackup("""{"formatVersion":1,"sponsor":null,"dependents":[],"claims":[]}""")
+        assertTrue(repo.signatures.first().isEmpty())
+    }
+
+    @Test fun migrationFromVersion1KeepsData() = runTest {
+        val name = "migration-test.db"
+        context.deleteDatabase(name)
+        context.openOrCreateDatabase(name, 0, null).use { v1 ->
+            v1.execSQL("CREATE TABLE `sponsor` (`id` INTEGER NOT NULL, `lastName` TEXT NOT NULL, `firstName` TEXT NOT NULL, `middleInitial` TEXT NOT NULL, `dodIdOrSsn` TEXT NOT NULL, `branchOfService` TEXT NOT NULL, `dutyStatus` TEXT NOT NULL, `streetAddress` TEXT NOT NULL, `city` TEXT NOT NULL, `state` TEXT NOT NULL, `zipCode` TEXT NOT NULL, `phoneNumber` TEXT NOT NULL, `dob` TEXT NOT NULL, `sex` TEXT, PRIMARY KEY(`id`))")
+            v1.execSQL("CREATE TABLE `dependents` (`id` TEXT NOT NULL, `relationship` TEXT NOT NULL, `lastName` TEXT NOT NULL, `firstName` TEXT NOT NULL, `middleInitial` TEXT NOT NULL, `dob` TEXT NOT NULL, `sex` TEXT, `dodId` TEXT NOT NULL, PRIMARY KEY(`id`))")
+            v1.execSQL("CREATE TABLE `claims` (`id` TEXT NOT NULL, `patientId` TEXT NOT NULL, `patientName` TEXT NOT NULL, `provider` TEXT NOT NULL, `dateOfService` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `currency` TEXT NOT NULL, `dossierUri` TEXT NOT NULL, `isPacketGenerated` INTEGER NOT NULL, `isFiled` INTEGER NOT NULL, `filedDate` TEXT, `isReimbursed` INTEGER NOT NULL, `reimbursedDate` TEXT, `notes` TEXT NOT NULL, PRIMARY KEY(`id`))")
+            v1.execSQL("INSERT INTO claims VALUES ('c1','d1','Jordan Sampleton','Klinikum Beispiel','2026-02-14',8505,'EUR','',1,1,'2026-02-20',0,NULL,'ear infection')")
+            v1.execSQL("INSERT INTO dependents VALUES ('d1','CHILD','Sampleton','Jordan','A','2014-06-17','F','1111111111')")
+            v1.version = 1
+        }
+        val migrated = Room.databaseBuilder(context, AppDatabase::class.java, name)
+            .addMigrations(AppDatabase.MIGRATION_1_2).allowMainThreadQueries().build()
+        try {
+            val r = Repository(migrated)
+            assertEquals(claim.copy(isPacketGenerated = true, isFiled = true, filedDate = "2026-02-20"), r.claims.first().single())
+            assertEquals(child, r.dependents.first().single())
+            r.saveSignature("Casey", SampleData.signature)
+            assertEquals(1, r.signatures.first().size)
+        } finally {
+            migrated.close()
+            context.deleteDatabase(name)
+        }
+    }
+
     @Test fun invalidBackupChangesNothing() = runTest {
         repo.saveClaim(claim)
         assertTrue(runCatching { repo.importBackup("not json") }.isFailure)
@@ -103,6 +148,20 @@ class DataTest {
         settings.clear()
         assertFalse(settings.disclaimerAccepted)
         assertNull(settings.claimsFolder)
+    }
+
+    @Test fun outputModeAndTipYearPersist() {
+        val settings = Settings(context)
+        assertEquals(com.easy2642.core.OutputMode.COMBINED, settings.outputMode)
+        assertEquals(0, settings.lastTipPromptYear)
+        settings.outputMode = com.easy2642.core.OutputMode.SEPARATE
+        settings.lastTipPromptYear = 2026
+        val reread = Settings(context)
+        assertEquals(com.easy2642.core.OutputMode.SEPARATE, reread.outputMode)
+        assertEquals(2026, reread.lastTipPromptYear)
+        assertFalse(com.easy2642.core.Oktoberfest.shouldPrompt(java.time.LocalDate.of(2026, 9, 25), reread.lastTipPromptYear))
+        settings.clear()
+        assertEquals(com.easy2642.core.OutputMode.COMBINED, Settings(context).outputMode)
     }
 
     @Test fun workFilesArePurged() {

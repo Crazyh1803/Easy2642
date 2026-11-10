@@ -8,8 +8,17 @@ Install a debug build: `./gradlew :app:installDebug`
 - [ ] Settings → Form engine test harness → Fill & preview shows the filled form; boxes and text sit inside their blocks.
 - [ ] "Long text" wraps inside block 8a without clipping.
 - [ ] "Audit field keys" reports 62 fields, 0 unmapped, 0 missing.
+- [ ] With "Apply sample signature" on, the scribble sits inside block 12a.
 - [ ] Airplane mode on: everything above still works.
-- [ ] Open an exported packet in Adobe Acrobat Reader and in the browser's PDF viewer: values are visible in both, and block 12a can still be signed.
+- [ ] Open an exported packet in Adobe Acrobat Reader and in the browser's PDF viewer: values and the signature are visible in both.
+
+## Signing
+- [ ] Draw a signature with a finger: strokes follow the finger, the page does not scroll while drawing, "Clear" empties the pad.
+- [ ] "Build packet" stays disabled until a signature is applied and 12b/12c are filled.
+- [ ] Save the signature under a name; start a new claim: the name appears as a chip and applies with one tap.
+- [ ] The signature in the exported PDF is legible when printed. Block 12a is only about 4.5 mm tall, so it will be small.
+- [ ] Family → Saved signatures: delete works.
+- [ ] Confirm with your claims processor that a drawn signature is accepted.
 
 ## Gate 2: scanning and attachments
 - [ ] "Scan pages" opens the scanner, detects edges and returns pages (needs Google Play services).
@@ -26,6 +35,9 @@ Install a debug build: `./gradlew :app:installDebug`
 - [ ] Settings → Choose claims folder, then Save packet → Save to "<folder>" creates the file there.
 - [ ] Revoke the folder (delete it), then save again: the app explains the folder is unavailable.
 - [ ] Share → email app receives the PDF attachment.
+- [ ] Review step → Save as "Separate files": three files (_Form, _Bill, _Receipt) are listed; Save files → Choose folder… writes all of them; Share sends all of them.
+- [ ] Attachments tagged "Receipt / proof of payment" land in the _Receipt file, the rest in _Bill.
+- [ ] Settings → Default output is remembered for the next claim.
 - [ ] Repeat a save on Android 11, 13 and 15 or later.
 - [ ] System Settings → Apps → 2642 Easy → Permissions shows "No permissions requested".
 
@@ -38,6 +50,11 @@ Install a debug build: `./gradlew :app:installDebug`
 - [ ] After leaving a claim, `adb shell run-as com.easy2642.app ls cache` shows no `packets` or `attachments` files.
 - [ ] Export Backup, Clear All Local Data (app restarts empty, first-run notice shows again), Restore from backup brings everything back.
 - [ ] After Clear All Local Data, `run-as com.easy2642.app ls databases no_backup` shows no database or passphrase file.
+
+## Links and tip reminder
+- [ ] Settings → Visit appsbydan.com and Tip the developer each open the browser.
+- [ ] Set the device date inside Oktoberfest (e.g. the last week of September) and open the app: the tip dialog appears once, and not again that year after dismissing.
+- [ ] On a fresh install during Oktoberfest, the first-run notice shows without the tip dialog on top.
 
 ## Gate 5: release
 - [ ] Create an upload keystore and `keystore.properties` (see README), run `./gradlew :app:bundleRelease`, upload the `.aab` to the internal testing track.

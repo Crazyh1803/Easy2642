@@ -1,6 +1,10 @@
 package com.easy2642.app.ui
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import com.easy2642.core.OutputMode
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -38,6 +42,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+object Links {
+    const val AUTHOR = "https://appsbydan.com/"
+    const val TIP = "https://buymeacoffee.com/AppsbyDan"
+}
+
+/** Hands a link to the user's browser. The app itself has no network access. */
+fun openUrl(context: Context, url: String) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.onFailure {
+        Toast.makeText(context, "No browser available to open $url", Toast.LENGTH_LONG).show()
+    }
+}
+
 fun folderLabel(app: Easy2642App, uri: Uri?): String? =
     uri?.let { runCatching { DocumentFile.fromTreeUri(app, it)?.name }.getOrNull() ?: "Selected folder" }
 
@@ -47,6 +63,7 @@ fun SettingsScreen(app: Easy2642App, onOpenHarness: (() -> Unit)?) {
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var folder by remember { mutableStateOf(app.settings.claimsFolder) }
+    var outputMode by remember { mutableStateOf(app.settings.outputMode) }
     var confirmBackup by remember { mutableStateOf(false) }
     var confirmImport by remember { mutableStateOf<Uri?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
@@ -88,6 +105,19 @@ fun SettingsScreen(app: Easy2642App, onOpenHarness: (() -> Unit)?) {
                 TextButton(onClick = { app.settings.claimsFolder = null; folder = null }) { Text("Stop using this folder") }
             }
 
+            SectionTitle("Saving claims")
+            ChoiceChips("Default output", OutputMode.entries, outputMode, { it.label }) { m ->
+                if (m != null) {
+                    app.settings.outputMode = m
+                    outputMode = m
+                }
+            }
+            Text(
+                if (outputMode == OutputMode.COMBINED) "The form, bill and receipts go into one PDF. You can still switch per claim."
+                else "The DD 2642, the bill and the receipt / proof of payment are saved as three PDFs. You can still switch per claim.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+
             SectionTitle("Your data")
             OutlinedButton(onClick = { confirmBackup = true }) { Text("Export Backup") }
             OutlinedButton(onClick = { openBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }, modifier = Modifier.padding(top = 8.dp)) {
@@ -103,6 +133,12 @@ fun SettingsScreen(app: Easy2642App, onOpenHarness: (() -> Unit)?) {
             Text(stringResource(R.string.privacy_summary), style = MaterialTheme.typography.bodyMedium)
             SectionTitle("Disclaimer")
             Text(stringResource(R.string.disclaimer), style = MaterialTheme.typography.bodyMedium)
+
+            SectionTitle("About the author")
+            Text("2642 Easy is made by Apps by Dan.", style = MaterialTheme.typography.bodyMedium)
+            OutlinedButton(onClick = { openUrl(context, Links.AUTHOR) }, modifier = Modifier.padding(top = 8.dp)) { Text("Visit appsbydan.com") }
+            OutlinedButton(onClick = { openUrl(context, Links.TIP) }, modifier = Modifier.padding(top = 8.dp)) { Text("Tip the developer") }
+            Text("Both open in your browser. Tips are optional and unlock nothing.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
 
             SectionTitle("About")
             Text("2642 Easy ${BuildConfig.VERSION_NAME} · Prepares DD Form 2642 (SEP 2024 edition)", style = MaterialTheme.typography.bodyMedium)

@@ -55,6 +55,7 @@ fun FamilyScreen(app: Easy2642App) {
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val dependents by repo.dependents.collectAsStateWithLifecycle(emptyList())
+    val signatures by repo.signatures.collectAsStateWithLifecycle(emptyList())
     var sponsor by remember { mutableStateOf(Sponsor()) }
     var loaded by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Dependent?>(null) }
@@ -109,9 +110,34 @@ fun FamilyScreen(app: Easy2642App) {
                 }
             }
             OutlinedButton(
-                onClick = { editing = Dependent(UUID.randomUUID().toString(), name = PersonName(lastName = sponsor.name.lastName)) },
+                onClick = {
+                    // Most families use the sponsor's number for every member, so start from it.
+                    editing = Dependent(
+                        UUID.randomUUID().toString(),
+                        name = PersonName(lastName = sponsor.name.lastName),
+                        dodId = sponsor.dodIdOrSsn,
+                    )
+                },
                 modifier = Modifier.padding(vertical = 8.dp),
             ) { Text("Add dependent") }
+
+            SectionTitle("Saved signatures")
+            if (signatures.isEmpty()) {
+                Text("None yet. You can save one when you sign your first claim.", style = MaterialTheme.typography.bodyMedium)
+            }
+            signatures.forEach { s ->
+                Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Row(Modifier.padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                            Text(s.signerName, style = MaterialTheme.typography.titleMedium)
+                            SignaturePreview(s.signature)
+                        }
+                        IconButton(onClick = { scope.launch { repo.deleteSignature(s.id) } }) {
+                            Icon(Icons.Filled.Delete, contentDescription = "Delete ${s.signerName}'s saved signature")
+                        }
+                    }
+                }
+            }
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -129,7 +155,10 @@ fun FamilyScreen(app: Easy2642App) {
                     }
                     DateField("Date of birth", d.dob, { d = d.copy(dob = it) })
                     ChoiceChips("Sex", Sex.entries, d.sex, { it.label }, { d = d.copy(sex = it) })
-                    Field("DoD Benefits Number (DBN)", d.dodId, { d = d.copy(dodId = it) }, keyboardType = KeyboardType.Number, supporting = "For your records")
+                    Field("DoD Benefits Number (DBN)", d.dodId, { d = d.copy(dodId = it) }, keyboardType = KeyboardType.Number, supporting = "Starts as the sponsor's number; change it if this person has their own")
+                    if (d.dodId.isBlank() && sponsor.dodIdOrSsn.isNotBlank()) {
+                        TextButton(onClick = { d = d.copy(dodId = sponsor.dodIdOrSsn) }) { Text("Use sponsor's number") }
+                    }
                 }
             },
             confirmButton = {

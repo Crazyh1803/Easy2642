@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 import com.easy2642.core.Dd2642FieldMap as F
 
 class CoreTest {
@@ -95,6 +96,44 @@ class CoreTest {
             ClaimFileName.build("Müller", "Dr. Schäfer's Praxis", "2026-02-14"))
         assertEquals("Claim_DD2642_Patient_Provider_undated.pdf", ClaimFileName.build(" ", "../..", ""))
         assertFalse(ClaimFileName.build("a/b", "c\\d:e", "2026-01-01").contains(Regex("[/\\\\:]")))
+    }
+
+    @Test fun separateFileNames() {
+        assertEquals("Claim_DD2642_Testerson_Klinikum_20260214_Bill.pdf",
+            ClaimFileName.build("Testerson", "Klinikum", "2026-02-14", "Bill"))
+    }
+
+    @Test fun oktoberfestDates() {
+        assertEquals(LocalDate.of(2023, 9, 16), Oktoberfest.start(2023))
+        assertEquals(LocalDate.of(2025, 9, 20), Oktoberfest.start(2025))
+        assertEquals(LocalDate.of(2026, 9, 19), Oktoberfest.start(2026))
+        assertEquals(LocalDate.of(2026, 10, 4), Oktoberfest.end(2026))
+        assertFalse(Oktoberfest.isOn(LocalDate.of(2026, 9, 18)))
+        assertTrue(Oktoberfest.isOn(LocalDate.of(2026, 9, 19)))
+        assertTrue(Oktoberfest.isOn(LocalDate.of(2026, 10, 4)))
+        assertFalse(Oktoberfest.isOn(LocalDate.of(2026, 10, 5)))
+    }
+
+    @Test fun tipPromptOncePerYear() {
+        val during = LocalDate.of(2026, 9, 25)
+        assertTrue(Oktoberfest.shouldPrompt(during, 0))
+        assertTrue(Oktoberfest.shouldPrompt(during, 2025))
+        assertFalse(Oktoberfest.shouldPrompt(during, 2026))
+        assertFalse(Oktoberfest.shouldPrompt(LocalDate.of(2026, 11, 10), 2025))
+        assertTrue(Oktoberfest.shouldPrompt(LocalDate.of(2027, 9, 18), 2026))
+    }
+
+    @Test fun signatureBlankAndFit() {
+        assertTrue(Signature().isBlank)
+        assertTrue(Signature(listOf(List(20) { SignaturePoint(5f, 5f) })).isBlank)
+        val sig = Signature(listOf((0..20).map { SignaturePoint(100f + it * 10f, 50f + (it % 2) * 40f) }))
+        assertFalse(sig.isBlank)
+        val fitted = sig.fitInto(280f, 10f).flatten()
+        assertTrue(fitted.all { it.x in 0f..280.01f && it.y in -0.01f..10.01f })
+        // 200 x 40 scaled by 0.25: aspect ratio kept, vertically centred.
+        assertEquals(50f, fitted.maxOf { it.x }, 0.01f)
+        assertEquals(0f, fitted.minOf { it.y }, 0.01f)
+        assertEquals(10f, fitted.maxOf { it.y }, 0.01f)
     }
 
     @Test fun amounts() {

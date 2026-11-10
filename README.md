@@ -6,23 +6,29 @@ An Android app that prepares, bundles and tracks DD Form 2642 medical claim pack
 
 ## What it does
 
-1. **Fills the form.** Maps a claim onto the official DD Form 2642 (SEP 2024 edition) AcroForm template and flattens it, leaving the signature box in block 12a open for a wet or CAC signature.
-2. **Bundles documents.** Scans pages with the ML Kit document scanner, imports images through the system photo picker and PDFs through the system file picker, then merges everything behind the form and recompresses images until the packet is under 10 MB.
-3. **Exports without permissions.** Saves through the Storage Access Framework (`ACTION_CREATE_DOCUMENT`, or a designated folder via `ACTION_OPEN_DOCUMENT_TREE`) or the share sheet, named `Claim_DD2642_[PatientLastName]_[Provider]_[YYYYMMDD].pdf`.
-4. **Remembers the family.** Sponsor and dependent profiles pre-fill blocks 1–6, 9 and 10. Stored in a SQLCipher database whose key is wrapped by the Android Keystore.
-5. **Tracks claims.** Dashboard with patient and status filters, search, and Filed Online / Reimbursed toggles.
+1. **Fills the form.** Maps a claim onto the official DD Form 2642 (SEP 2024 edition) AcroForm template and flattens it.
+2. **Requires a signature.** The claim cannot be built until block 12a is signed on screen. Signatures are vector strokes drawn into the block; they can be saved per signer (encrypted) and reused with one tap.
+3. **Bundles documents.** Scans pages with the ML Kit document scanner, imports images through the system photo picker and PDFs through the system file picker, and tags each as a bill or a receipt / proof of payment.
+4. **Writes one PDF or three.** Either a combined packet (form first, attachments after) or separate `_Form`, `_Bill` and `_Receipt` files. Images are recompressed until each file is under 10 MB.
+5. **Exports without permissions.** Saves through the Storage Access Framework (`ACTION_CREATE_DOCUMENT`, or a folder via `ACTION_OPEN_DOCUMENT_TREE`) or the share sheet, named `Claim_DD2642_[PatientLastName]_[Provider]_[YYYYMMDD].pdf`.
+6. **Remembers the family.** Sponsor and dependent profiles pre-fill blocks 1–6, 9 and 10. Stored in a SQLCipher database whose key is wrapped by the Android Keystore.
+7. **Tracks claims.** Dashboard with patient and status filters, search, and Filed Online / Reimbursed toggles.
 
 The app requests **no Android system permissions**: no internet, storage or camera. (The only manifest entry is AndroidX's app-private `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`.)
+
+Block 12a of the form reads "Common Access Card or Physical signature required". The app draws an image of a handwritten signature; whether a given claims processor accepts that is their decision.
+
+Settings links to the author's site and an optional tip page, and a tip reminder appears at most once a year during Oktoberfest (`TIP_REMINDER_ENABLED` in `ui/AppRoot.kt` turns it off). Links are handed to the browser; the app itself has no network access.
 
 ## Project layout
 
 | Path | Contents |
 | --- | --- |
 | `core/` | Pure Kotlin: models, `Dd2642FieldMap` (all 61 fillable field keys), file naming, claim state and filters. No Android dependencies |
-| `app/…/pdf/` | `PdfFormService` (fill, flatten, field audit), `TextFit`, `PacketBuilder` (image pages, PDF merge, size cap) |
+| `app/…/pdf/` | `PdfFormService` (fill, sign, flatten, field audit), `TextFit`, `PacketBuilder` (image pages, PDF merge, combined or separate output, size cap) |
 | `app/…/scan/` | ML Kit document scanner wrapper |
 | `app/…/data/` | Room entities and DAOs, `SecureDatabase` and `KeystorePassphrase`, repository, backup |
-| `app/…/ui/` | Compose screens: dashboard, family profiles, claim wizard, settings, debug-only form harness |
+| `app/…/ui/` | Compose screens: dashboard, family profiles, claim wizard with signature pad, settings, debug-only form harness |
 | `app/src/main/assets/forms/dd2642_template.pdf` | The official form with its XFA layer and owner-password restrictions removed by `tools/prepare_template.py` |
 | `docs/` | Privacy policy, Play Console answers and store text, device gate checklist |
 

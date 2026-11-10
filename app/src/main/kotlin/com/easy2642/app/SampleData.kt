@@ -10,6 +10,8 @@ import com.easy2642.core.PersonName
 import com.easy2642.core.Phone
 import com.easy2642.core.Relationship
 import com.easy2642.core.Sex
+import com.easy2642.core.Signature
+import com.easy2642.core.SignaturePoint
 
 /** Synthetic data for the developer harness, tests and store screenshots. Never real PII. */
 object SampleData {
@@ -41,5 +43,13 @@ object SampleData {
         signerRelationship = "Parent",
         paymentCurrency = PaymentCurrency.US_DOLLAR,
         paidProvider = true,
+    )
+
+    /** A synthetic scribble standing in for a handwritten signature. */
+    val signature = Signature(
+        listOf(
+            (0..40).map { SignaturePoint(20f + it * 9f, 80f + 45f * kotlin.math.sin(it / 2.5).toFloat()) },
+            (0..12).map { SignaturePoint(60f + it * 25f, 140f - it * 2f) },
+        ),
     )
 }

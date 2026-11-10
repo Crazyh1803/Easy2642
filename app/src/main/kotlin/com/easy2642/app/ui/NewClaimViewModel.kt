@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.easy2642.app.Easy2642App
 import com.easy2642.app.WorkFiles
 import com.easy2642.app.pdf.Attachment
+import com.easy2642.app.pdf.AttachmentCategory
 import com.easy2642.app.pdf.AttachmentKind
 import com.easy2642.app.pdf.PacketBuilder
 import com.easy2642.app.pdf.PacketResult
@@ -18,7 +19,10 @@ import com.easy2642.core.ClaimPrefill
 import com.easy2642.core.ClaimRecord
 import com.easy2642.core.Currency
 import com.easy2642.core.Dependent
+import com.easy2642.core.OutputMode
 import com.easy2642.core.SPONSOR_PATIENT_ID
+import com.easy2642.core.SavedSignature
+import com.easy2642.core.Signature
 import com.easy2642.core.Sponsor
 import com.easy2642.core.parseAmountMinor
 import java.io.File
@@ -33,10 +37,20 @@ import kotlinx.coroutines.withContext
 
 const val MANUAL_PATIENT_ID = "manual"
 
+object Steps {
+    const val VISIT = 0
+    const val FORM = 1
+    const val DOCUMENTS = 2
+    const val SIGN = 3
+    const val REVIEW = 4
+    val TITLES = listOf("Patient & visit", "Form details", "Supporting documents", "Sign", "Review & save")
+}
+
 data class NewClaimState(
-    val step: Int = 0,
+    val step: Int = Steps.VISIT,
     val sponsor: Sponsor? = null,
     val dependents: List<Dependent> = emptyList(),
+    val savedSignatures: List<SavedSignature> = emptyList(),
     val patientId: String? = null,
     val form: ClaimForm = ClaimForm(signedDate = today()),
     val provider: String = "",
@@ -45,14 +59,22 @@ data class NewClaimState(
     val currency: Currency = Currency.USD,
     val notes: String = "",
     val attachments: List<Attachment> = emptyList(),
+    /** The signature that will be drawn into block 12a. A packet cannot be built without it. */
+    val signature: Signature? = null,
+    val signerName: String = "",
+    val outputMode: OutputMode = OutputMode.COMBINED,
     val busy: Boolean = false,
-    val packet: PacketResult? = null,
-    val packetVersion: Int = 0,
+    /** One file in combined mode; form, bill and receipt files in separate mode. */
+    val outputs: List<PacketResult> = emptyList(),
+    val outputsVersion: Int = 0,
     val warnings: List<String> = emptyList(),
     val message: String? = null,
     val savedTo: String? = null,
 ) {
-    val fileName: String get() = ClaimFileName.build(form.patientName.lastName, provider, dateOfService)
+    val isSigned: Boolean get() = signature?.isBlank == false
+
+    fun fileName(part: String? = null): String =
+        ClaimFileName.build(form.patientName.lastName, provider, dateOfService, part)
 
     /** Problems that block moving past the first step. */
     val visitErrors: List<String>
@@ -61,6 +83,14 @@ data class NewClaimState(
             if (provider.isBlank()) add("Provider")
             if (!isIsoDate(dateOfService)) add("Date of service")
             if (amountText.isNotBlank() && parseAmountMinor(amountText) == null) add("Amount")
+        }
+
+    /** Problems that block leaving the signing step. */
+    val signErrors: List<String>
+        get() = buildList {
+            if (!isSigned) add("Signature")
+            if (!isIsoDate(form.signedDate)) add("Date signed")
+            if (form.signerRelationship.isBlank()) add("Relationship to patient")
         }
 
     /** Non-blocking reminders about blocks the claims processor expects. */
@@ -80,21 +110,28 @@ data class NewClaimState(
 
 class NewClaimViewModel(private val app: Easy2642App) : ViewModel() {
     private val claimId = UUID.randomUUID().toString()
-    private val _state = MutableStateFlow(NewClaimState())
+    private val _state = MutableStateFlow(NewClaimState(outputMode = app.settings.outputMode))
     val state = _state.asStateFlow()
 
     init {
         viewModelScope.launch {
             val sponsor = app.repository.sponsor.first()
             val deps = app.repository.dependents.first()
-            _state.update { it.copy(sponsor = sponsor, dependents = deps) }
+            val sigs = app.repository.signatures.first()
+            _state.update { it.copy(sponsor = sponsor, dependents = deps, savedSignatures = sigs) }
         }
     }
 
-    fun update(f: (NewClaimState) -> NewClaimState) = _state.update { f(it).copy(packet = null, savedTo = null) }
+    /** Any change to the claim invalidates files that were already built. */
+    fun update(f: (NewClaimState) -> NewClaimState) = _state.update { f(it).copy(outputs = emptyList(), savedTo = null) }
     fun updateForm(f: (ClaimForm) -> ClaimForm) = update { it.copy(form = f(it.form)) }
     fun clearMessage() = _state.update { it.copy(message = null) }
-    fun goTo(step: Int) = _state.update { it.copy(step = step.coerceIn(0, 3)) }
+
+    /** Moves between steps. The review step cannot be reached unsigned. */
+    fun goTo(step: Int) = _state.update {
+        val target = step.coerceIn(Steps.VISIT, Steps.REVIEW)
+        if (target == Steps.REVIEW && it.signErrors.isNotEmpty()) it.copy(step = Steps.SIGN) else it.copy(step = target)
+    }
 
     /** Pre-fills blocks 1-6, 9 and 10 from the chosen profile, keeping everything else entered so far. */
     fun selectPatient(id: String) = update { s ->
@@ -148,28 +185,64 @@ class NewClaimViewModel(private val app: Easy2642App) : ViewModel() {
         if (target !in s.attachments.indices) s else s.copy(attachments = s.attachments.toMutableList().apply { add(target, removeAt(index)) })
     }
 
-    /** Fills the form, merges the attachments and records the claim in the tracker. */
+    fun setCategory(a: Attachment, category: AttachmentCategory) = update { s ->
+        s.copy(attachments = s.attachments.map { if (it === a) it.copy(category = category) else it })
+    }
+
+    fun setOutputMode(mode: OutputMode) {
+        update { it.copy(outputMode = mode) }
+        if (_state.value.step == Steps.REVIEW) buildPacket()
+    }
+
+    /** Applies a signature the signer saved earlier. */
+    fun useSavedSignature(saved: SavedSignature) = update { it.copy(signature = saved.signature, signerName = saved.signerName) }
+
+    /** Applies a freshly drawn signature and, if asked, saves it under the signer's name. */
+    fun applyDrawnSignature(signature: Signature, signerName: String, save: Boolean) {
+        if (signature.isBlank) return
+        update { it.copy(signature = signature, signerName = signerName.trim()) }
+        if (save && signerName.isNotBlank()) {
+            viewModelScope.launch {
+                app.repository.saveSignature(signerName, signature)
+                val sigs = app.repository.signatures.first()
+                _state.update { it.copy(savedSignatures = sigs) }
+            }
+        }
+    }
+
+    fun clearSignature() = update { it.copy(signature = null) }
+
+    /** Fills and signs the form, writes the output file(s) and records the claim in the tracker. */
     fun buildPacket() {
         val s = _state.value
         if (s.busy) return
+        val signature = s.signature
+        if (signature == null || s.signErrors.isNotEmpty()) {
+            // Hard rule: nothing is generated without a signature.
+            _state.update { it.copy(step = Steps.SIGN, message = "Sign the form before the packet can be created.") }
+            return
+        }
         viewModelScope.launch {
-            _state.update { it.copy(busy = true, packet = null, savedTo = null) }
+            _state.update { it.copy(busy = true, outputs = emptyList(), savedTo = null) }
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     val dir = WorkFiles.packets(app)
                     dir.listFiles()?.forEach { it.delete() }
                     val formPdf = File(dir, "form.pdf")
-                    val fill = app.formService.fill(s.form, formPdf)
-                    val packet = app.packetBuilder.build(formPdf, s.attachments, File(dir, s.fileName))
+                    val fill = app.formService.fill(s.form, formPdf, signature)
+                    val outputs = when (s.outputMode) {
+                        OutputMode.COMBINED -> listOf(app.packetBuilder.build(formPdf, s.attachments, File(dir, s.fileName())))
+                        OutputMode.SEPARATE -> app.packetBuilder.buildSeparate(formPdf, s.attachments, dir) { s.fileName(it) }
+                    }
                     formPdf.delete()
                     saveRecord(s, dossierUri = null)
-                    fill.warnings to packet
+                    fill.warnings to outputs
                 }
             }
             _state.update {
                 result.fold(
-                    onSuccess = { (warnings, packet) ->
-                        it.copy(busy = false, packet = packet, packetVersion = it.packetVersion + 1, warnings = warnings)
+                    onSuccess = { (warnings, outputs) ->
+                        it.copy(busy = false, outputs = outputs, outputsVersion = it.outputsVersion + 1, warnings = warnings)
                     },
                     onFailure = { e -> it.copy(busy = false, message = "The packet could not be built (${e.javaClass.simpleName}). Check the attached files and try again.") },
                 )
@@ -195,15 +268,19 @@ class NewClaimViewModel(private val app: Easy2642App) : ViewModel() {
         )
     }
 
-    /** Copies the packet to a document the user created with the system picker. */
+    private fun copyTo(uri: Uri, file: File) {
+        app.contentResolver.openOutputStream(uri, "w")!!.use { out -> file.inputStream().use { it.copyTo(out) } }
+    }
+
+    /** Combined mode: copies the single packet to a document the user created with the system picker. */
     fun exportTo(uri: Uri, destinationLabel: String) {
         val s = _state.value
-        val packet = s.packet ?: return
+        val packet = s.outputs.singleOrNull() ?: return
         viewModelScope.launch {
             _state.update { it.copy(busy = true) }
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    app.contentResolver.openOutputStream(uri, "w")!!.use { out -> packet.file.inputStream().use { it.copyTo(out) } }
+                    copyTo(uri, packet.file)
                     // Lets "Open packet" on the dashboard keep working after a reboot, where the provider allows it.
                     runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                     saveRecord(s, uri.toString())
@@ -216,30 +293,42 @@ class NewClaimViewModel(private val app: Easy2642App) : ViewModel() {
         }
     }
 
-    /** Creates the file inside the designated claims folder and writes the packet there. */
-    fun exportToClaimsFolder() {
+    /** Writes every output file into a folder: the designated claims folder, or one just picked. */
+    fun exportToFolder(tree: Uri? = app.settings.claimsFolder) {
         val s = _state.value
-        val tree = app.settings.claimsFolder ?: return
+        if (tree == null || s.outputs.isEmpty()) return
         viewModelScope.launch {
-            val target = withContext(Dispatchers.IO) {
-                runCatching { DocumentFile.fromTreeUri(app, tree)?.createFile("application/pdf", s.fileName)?.uri }.getOrNull()
+            _state.update { it.copy(busy = true) }
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    val folder = DocumentFile.fromTreeUri(app, tree) ?: error("folder unavailable")
+                    val written = s.outputs.map { out ->
+                        val doc = folder.createFile("application/pdf", out.file.name) ?: error("cannot create file")
+                        copyTo(doc.uri, out.file)
+                        doc.uri
+                    }
+                    // The first file is the packet (combined) or the form (separate).
+                    saveRecord(s, written.first().toString())
+                }
             }
-            if (target == null) {
-                _state.update { it.copy(message = "The claims folder is no longer accessible. Choose it again in Settings, or pick a location manually.") }
-            } else {
-                exportTo(target, folderLabel(app, tree) ?: "claims folder")
+            _state.update {
+                if (result.isSuccess) it.copy(busy = false, savedTo = "\"${folderLabel(app, tree) ?: "the folder"}\"")
+                else it.copy(busy = false, message = "That folder is not accessible or not writable. Choose another folder, or pick it again in Settings.")
             }
         }
     }
 
     fun shareIntent(): Intent? {
-        val packet = _state.value.packet ?: return null
-        val uri = FileProvider.getUriForFile(app, "${app.packageName}.share", packet.file)
-        val send = Intent(Intent.ACTION_SEND)
-            .setType("application/pdf")
-            .putExtra(Intent.EXTRA_STREAM, uri)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        return Intent.createChooser(send, "Share claim packet")
+        val outputs = _state.value.outputs
+        if (outputs.isEmpty()) return null
+        val uris = outputs.map { FileProvider.getUriForFile(app, "${app.packageName}.share", it.file) }
+        val send = if (uris.size == 1) {
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris.single())
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        }
+        send.setType("application/pdf").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        return Intent.createChooser(send, "Share claim files")
     }
 
     override fun onCleared() {
