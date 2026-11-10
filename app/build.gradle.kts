@@ -28,6 +28,14 @@ android {
     }
 
     signingConfigs {
+        // One debug key for every machine and CI run, so a newer debug APK installs over an
+        // older one without uninstalling. It is not a secret and is never used for release.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (keystoreProps.containsKey("storeFile")) {
             create("release") {
                 storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))

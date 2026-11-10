@@ -52,6 +52,8 @@ To keep the PDFs the tests generate for a visual check:
 ./gradlew :app:testDebugUnitTest -PpdfOutDir=/tmp/2642-pdfs
 ```
 
+Debug builds are signed with the tracked `app/debug.keystore`, so a debug APK from CI or any machine installs over an earlier one without uninstalling. That key is public by design and is never used for release.
+
 ### Release bundle
 
 Create `keystore.properties` in the project root (it is git-ignored):

@@ -16,7 +16,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.CircularProgressIndicator
@@ -89,6 +96,20 @@ fun today(): String = LocalDate.now().toString()
 
 fun isIsoDate(s: String): Boolean = runCatching { LocalDate.parse(s) }.isSuccess
 
+/** Next moves to the following field; when there is none, focus is dropped and the keyboard closes. */
+fun nextOrClose(focus: FocusManager) = KeyboardActions(
+    onNext = { if (!focus.moveFocus(FocusDirection.Next)) focus.clearFocus() },
+    onDone = { focus.clearFocus() },
+    onSearch = { focus.clearFocus() },
+)
+
+/** Tapping any empty area drops focus, which closes the keyboard. */
+@Composable
+fun Modifier.clearFocusOnTap(): Modifier {
+    val focus = LocalFocusManager.current
+    return pointerInput(Unit) { detectTapGestures(onTap = { focus.clearFocus() }) }
+}
+
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -112,6 +133,7 @@ fun Field(
     supporting: String? = null,
     isError: Boolean = false,
 ) {
+    val focus = LocalFocusManager.current
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
@@ -120,7 +142,14 @@ fun Field(
         minLines = minLines,
         isError = isError,
         supportingText = supporting?.let { { Text(it) } },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, capitalization = capitalization),
+        // Single-line fields get a Next key that walks the form and closes the keyboard after
+        // the last field. Multi-line fields keep Enter for new lines; tap outside to close.
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            capitalization = capitalization,
+            imeAction = if (singleLine) ImeAction.Next else ImeAction.Default,
+        ),
+        keyboardActions = nextOrClose(focus),
         modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
 }
@@ -129,6 +158,7 @@ fun Field(
 @Composable
 fun DateField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     var showPicker by remember { mutableStateOf(false) }
+    val focus = LocalFocusManager.current
     OutlinedTextField(
         value = value,
         onValueChange = { onChange(it.filter { ch -> ch.isDigit() || ch == '-' }.take(10)) },
@@ -137,7 +167,8 @@ fun DateField(label: String, value: String, onChange: (String) -> Unit, modifier
         singleLine = true,
         isError = value.isNotBlank() && !isIsoDate(value),
         supportingText = if (value.isNotBlank() && !isIsoDate(value)) ({ Text("Use YYYY-MM-DD") }) else null,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+        keyboardActions = nextOrClose(focus),
         trailingIcon = {
             IconButton(onClick = { showPicker = true }) { Icon(Icons.Filled.DateRange, contentDescription = "Pick $label") }
         },

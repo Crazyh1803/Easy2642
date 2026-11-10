@@ -43,6 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.text.style.TextAlign
@@ -126,6 +129,8 @@ fun DashboardScreen(app: Easy2642App, onNewClaim: () -> Unit) {
                     }
                 },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = nextOrClose(LocalFocusManager.current),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             )
             ChipRow {

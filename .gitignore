@@ -7,5 +7,7 @@ local.properties
 captures/
 *.jks
 *.keystore
+# The shared debug key is deliberately tracked so every debug build can update in place.
+!app/debug.keystore
 keystore.properties
 .DS_Store
