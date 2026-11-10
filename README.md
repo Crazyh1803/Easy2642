@@ -54,9 +54,29 @@ To keep the PDFs the tests generate for a visual check:
 
 Debug builds are signed with the tracked `app/debug.keystore`, so a debug APK from CI or any machine installs over an earlier one without uninstalling. That key is public by design and is never used for release.
 
-### Release bundle
+### Release bundle for Google Play
 
-Create `keystore.properties` in the project root (it is git-ignored):
+After cloning or syncing the repo to your computer, double-click the launcher for your system in the project folder:
+
+- **Windows:** `Setup Release Build (Windows).bat`
+- **Mac:** `Setup Release Build (Mac).command`
+- **Linux:** run `tools/setup-release.sh`
+
+It is safe to run every time you want a new bundle. It:
+
+1. finds Java (the one bundled with Android Studio, or any JDK 17+), offering to install Android Studio through winget or Homebrew if neither is present;
+2. installs the Android SDK pieces the project needs if they are missing, and writes `local.properties`;
+3. on the first run, creates your upload key (`upload-keystore.jks`) and `keystore.properties` after asking for a password;
+4. builds and verifies the signed bundle at `app/build/outputs/bundle/release/app-release.aab`.
+
+Then open the folder in Android Studio as usual if you want to work on the code.
+
+Keep these safe:
+
+- **Back up `upload-keystore.jks` and its password** outside the project. Both are git-ignored and exist only on your computer. If you lose them you must ask Google Play support to reset your upload key.
+- **Raise `versionCode`** (and `versionName`) in `app/build.gradle.kts` before every upload after the first; Play rejects a repeated version code.
+
+To build by hand instead, create `keystore.properties` in the project root:
 
 ```properties
 storeFile=upload-keystore.jks

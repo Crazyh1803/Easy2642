@@ -68,7 +68,7 @@ Install a debug build: `./gradlew :app:installDebug`
 - [ ] On a fresh install during Oktoberfest, the first-run notice shows without the tip dialog on top.
 
 ## Gate 5: release
-- [ ] Create an upload keystore and `keystore.properties` (see README), run `./gradlew :app:bundleRelease`, upload the `.aab` to the internal testing track.
+- [ ] Run the release setup launcher for your system (see README), back up `upload-keystore.jks` and its password, and upload the `.aab` to the internal testing track.
 - [ ] Smoke-test the release build end to end: R8 shrinking is enabled and only the debug build has been exercised by automated tests.
 - [ ] Pre-launch report shows no policy or stability issues.
 - [ ] Privacy policy is published at a public URL and linked in the listing.
