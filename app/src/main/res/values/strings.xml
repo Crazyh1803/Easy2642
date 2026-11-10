@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">2642 Easy</string>
+    <string name="disclaimer">2642 Easy is an independent document preparation tool. It is not affiliated with, endorsed by, or sponsored by TRICARE, the Defense Health Agency (DHA), or the Department of Defense (DoD). Users remain responsible for submitting completed claim packets to their respective claims processor or portal.</string>
+    <string name="disclaimer_short">Independent tool. Not affiliated with TRICARE, DHA or DoD.</string>
+    <string name="privacy_summary">2642 Easy collects no data. Everything you enter is processed and stored only on this device, encrypted at rest. The app has no network permission. Files leave the device only when you save or share them yourself.</string>
+</resources>
