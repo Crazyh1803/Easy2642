@@ -3,6 +3,8 @@ package com.easy2642.app.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -74,11 +76,16 @@ fun AppRoot(app: Easy2642App) {
         Triple(Routes.SETTINGS, "Settings", Icons.Filled.Settings),
     )
 
+    // The whole UI is lifted above the keyboard here, once, so every screen's own bottom
+    // buttons (Next, Save…) stay visible while typing. Screens must not add imePadding again.
+    val typing = WindowInsets.isImeVisible
     Scaffold(
+        modifier = Modifier.imePadding().clearFocusOnTap(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            Column {
-                // The disclaimer is visible on every screen of the app.
+            // While the keyboard is open the tab bar and disclaimer strip step aside to leave
+            // room for the form; the disclaimer is back on every screen as soon as it closes.
+            if (!typing) Column {
                 val showBar = topLevel.any { it.first == current }
                 DisclaimerFooter(if (showBar) Modifier else Modifier.navigationBarsPadding())
                 if (showBar) {

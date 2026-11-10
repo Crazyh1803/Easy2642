@@ -13,7 +13,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.ScrollState
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -95,6 +96,10 @@ fun NewClaimScreen(app: Easy2642App, onClose: () -> Unit, onOpenFamily: () -> Un
             vm.clearMessage()
         }
     }
+    // Each step starts at the top with the keyboard closed.
+    val focus = LocalFocusManager.current
+    val scroll = remember(state.step) { ScrollState(0) }
+    LaunchedEffect(state.step) { focus.clearFocus() }
     LaunchedEffect(state.step) {
         if (state.step == Steps.REVIEW && state.outputs.isEmpty()) vm.buildPacket()
     }
@@ -126,7 +131,7 @@ fun NewClaimScreen(app: Easy2642App, onClose: () -> Unit, onOpenFamily: () -> Un
         },
     ) { padding ->
         Column(
-            Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            Modifier.padding(padding).fillMaxSize().verticalScroll(scroll).padding(horizontal = 16.dp),
         ) {
             when (state.step) {
                 Steps.VISIT -> VisitStep(state, vm, onOpenFamily)

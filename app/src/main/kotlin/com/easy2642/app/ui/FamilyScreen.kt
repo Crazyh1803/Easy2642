@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -70,7 +69,7 @@ fun FamilyScreen(app: Easy2642App) {
         topBar = { TopAppBar(title = { Text("Family profiles") }) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(Modifier.padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+        Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Text(
                 "Saved once, encrypted on this device, and reused to pre-fill blocks 1–6, 9 and 10 of every new claim.",
                 style = MaterialTheme.typography.bodySmall,

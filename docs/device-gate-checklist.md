@@ -4,6 +4,17 @@ Automated tests cover the form mapping, PDF output, merging, compression, file n
 
 Install a debug build: `./gradlew :app:installDebug`
 
+## Keyboard
+- [ ] New claim, step 2: tap a text box. The Next button stays visible just above the keyboard.
+- [ ] The keyboard's Next key moves through the fields and closes the keyboard after the last one.
+- [ ] Tapping an empty part of the screen closes the keyboard.
+- [ ] In the multi-line description box (8a), Enter adds a line; tapping outside closes the keyboard.
+- [ ] Moving to another step closes the keyboard and starts the step at the top.
+- [ ] Same on Family: the Save sponsor button can be reached while typing.
+
+## Updating a debug build
+- [ ] After installing a build signed with the shared debug key once, a newer debug APK installs over it without uninstalling, and saved profiles and claims are still there.
+
 ## Gate 1: form engine
 - [ ] Settings → Form engine test harness → Fill & preview shows the filled form; boxes and text sit inside their blocks.
 - [ ] "Long text" wraps inside block 8a without clipping.
