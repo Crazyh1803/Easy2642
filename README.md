@@ -20,6 +20,10 @@ Block 12a of the form reads "Common Access Card or Physical signature required".
 
 Settings links to the author's site and an optional tip page, and a tip reminder appears at most once a year during Oktoberfest (`TIP_REMINDER_ENABLED` in `ui/AppRoot.kt` turns it off). Links are handed to the browser; the app itself has no network access.
 
+## Web version
+
+`web/` holds a browser version for PC, Mac, iPhone and iPad with the same features: phone camera or webcam capture, file upload, signing, combined or separate PDFs, the tracker, and backups that are interchangeable with the Android app. It is a static site with no server side. See `web/README.md` for how it differs, how to run it and how it is deployed to GitHub Pages.
+
 ## Project layout
 
 | Path | Contents |
