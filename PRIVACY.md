@@ -36,6 +36,19 @@ Nothing leaves your device unless **you** send it:
 - No analytics, advertising, crash reporting or tracking libraries are included.
 - App data is excluded from Android cloud backup and device-to-device transfer.
 
+## Web version
+
+2642 Easy is also available as a website that runs entirely in your browser. Everything above applies to it, with these differences:
+
+- **Passcode.** On first use you choose a passcode, and you enter it each time you open the site and after 15 minutes without activity. The passcode is never stored or sent anywhere. A forgotten passcode cannot be recovered; the only remedy is to erase the saved data and restore from a backup file.
+- **Where data lives.** Profiles, claims and saved signatures are kept in that browser's own storage on your device as a single document encrypted with AES-256, using a key derived from your passcode. The key exists only in memory while the site is unlocked. A few non-personal preferences (notice acknowledged, default output format, the year the tip reminder was last shown) are stored unencrypted.
+- **Nothing is uploaded.** After the site's own files have loaded, it makes no network requests. The page is built with a browser security policy that blocks connections to any other site.
+- **Loading the site.** Like any website, opening it means your browser requests its files from the host (GitHub Pages), which can see your IP address and standard request details under GitHub's own privacy statement. No information you type into the app is part of those requests.
+- **Camera.** If you choose "Use camera", your browser asks for permission. Frames are processed inside the page, only the pages you capture are kept (in memory, for the claim you are preparing), and the camera is released when the dialog closes. You can use file upload instead.
+- **Files in progress.** Attached documents and generated PDFs are held in memory only and are gone when you close or reload the page.
+- **One browser, one device.** Saved data does not sync. Clearing the browser's site data, or using another browser or device, starts empty; use Export backup to move your data. Backup files are unencrypted, as described above.
+- **Deleting.** Settings → Clear all local data erases the encrypted document, the passcode and the preferences from that browser. Clearing the browser's site data for the site does the same.
+
 ## Deleting your data
 
 **Settings → Clear all local data** erases the database (profiles, claims and saved signatures), the encryption key, preferences and cached files. Uninstalling the app does the same. Files you saved or shared elsewhere are outside the app's control and must be deleted where you put them.
