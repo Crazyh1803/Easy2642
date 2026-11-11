@@ -60,6 +60,20 @@ npm run e2e
 
 `npm test` covers the form mapping, PDF output, packet building, encryption and backup parsing. `npm run e2e` drives the built site in Chromium with a fake camera through the whole flow: passcode, profiles, a claim with a camera capture and uploads, signing, both output modes, the tracker, lock/unlock, backup, erase and restore. It needs Playwright (`npm install --no-save playwright && npx playwright install chromium`). Screenshots and the generated PDFs land in `e2e/out/`.
 
+## Screenshots
+
+`docs/store/web-screenshots-phone/` holds ten phone-sized screenshots (1170 x 2532) with made-up data. Regenerate them after UI changes:
+
+```bash
+npm run build
+```
+
+```bash
+node e2e/screenshots.mjs ../docs/store/web-screenshots-phone
+```
+
+They come from a headless desktop Chromium emulating a phone, so the embedded PDF preview is hidden (that browser has no PDF viewer) and the save dialog shows a "Choose folder…" button that real phone browsers do not offer.
+
 ## Deploy
 
 `.github/workflows/web.yml` tests and builds on every push that touches `web/`, and publishes `web/dist` to GitHub Pages from `main`. One-time setup: repository **Settings → Pages → Build and deployment → Source: GitHub Actions**. The site then appears at `https://crazyh1803.github.io/Easy2642/`.
