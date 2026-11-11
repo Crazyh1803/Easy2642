@@ -30,7 +30,8 @@ Settings links to the author's site and an optional tip page, and a tip reminder
 | `app/…/data/` | Room entities and DAOs, `SecureDatabase` and `KeystorePassphrase`, repository, backup |
 | `app/…/ui/` | Compose screens: dashboard, family profiles, claim wizard with signature pad, settings, debug-only form harness |
 | `app/src/main/assets/forms/dd2642_template.pdf` | The official form with its XFA layer and owner-password restrictions removed by `tools/prepare_template.py` |
-| `docs/` | Privacy policy, Play Console answers and store text, device gate checklist |
+| `PRIVACY.md` | Privacy policy, linked from the Play listing and from Settings in the app |
+| `docs/` | Play Console answers and store text, device gate checklist |
 
 ## About the form
 
