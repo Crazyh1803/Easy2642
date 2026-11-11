@@ -1,0 +1,11 @@
+{
+  "name": "2642 Easy",
+  "short_name": "2642 Easy",
+  "description": "Fill, sign, bundle and track DD Form 2642 claim packets. Private: nothing is uploaded.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#437A5B",
+  "theme_color": "#437A5B",
+  "icons": [{ "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}
