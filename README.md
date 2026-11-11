@@ -92,6 +92,14 @@ keyPassword=…
 
 Without that file the bundle is built unsigned.
 
+### Store screenshots
+
+`docs/store/screenshots/` holds eight 1080 x 1920 screenshots for the Play listing. They are rendered from the app's real screens with made-up data by the `StoreScreenshots` test, without a device, so they show the app content only (no status bar, tab bar or disclaimer strip). Regenerate them after UI changes:
+
+```bash
+./gradlew :app:testDebugUnitTest --tests '*StoreScreenshots*' -PscreenshotDir=docs/store/screenshots
+```
+
 ## What still needs a real device
 
 See `docs/device-gate-checklist.md`. Camera scanning, saving to Drive or an SD card, Keystore-backed encryption and the R8-shrunk release build cannot be exercised by the JVM tests.

@@ -13,7 +13,13 @@ import java.io.File
 
 class Easy2642App : Application() {
     val settings by lazy { Settings(this) }
-    val repository by lazy { Repository(SecureDatabase.open(this)) }
+    private val secureRepository by lazy { Repository(SecureDatabase.open(this)) }
+
+    /** Tests substitute an unencrypted in-memory repository; SQLCipher cannot load on a desktop JVM. */
+    @Volatile
+    var repositoryOverride: Repository? = null
+
+    val repository: Repository get() = repositoryOverride ?: secureRepository
     val formService by lazy { PdfFormService { assets.open(TEMPLATE_ASSET) } }
     val packetBuilder = PacketBuilder()
 
