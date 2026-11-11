@@ -1,0 +1,10 @@
+# Scripts must keep the line endings their interpreter expects on every OS.
+*.sh       text eol=lf
+*.command  text eol=lf
+gradlew    text eol=lf
+*.bat      text eol=crlf
+*.ps1      text eol=crlf
+*.pdf      binary
+*.png      binary
+*.jar      binary
+*.keystore binary

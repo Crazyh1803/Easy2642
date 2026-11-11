@@ -8,6 +8,29 @@ import com.easy2642.core.OutputMode
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -58,6 +81,36 @@ fun folderLabel(app: Easy2642App, uri: Uri?): String? =
     uri?.let { runCatching { DocumentFile.fromTreeUri(app, it)?.name }.getOrNull() ?: "Selected folder" }
 
 @Composable
+private fun SettingsGroup(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),
+    )
+}
+
+/** One tappable settings line: icon, title, a short line of detail, optional trailing control. */
+@Composable
+private fun SettingsRow(
+    icon: ImageVector,
+    title: String,
+    detail: String,
+    onClick: () -> Unit,
+    danger: Boolean = false,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    val tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    ListItem(
+        headlineContent = { Text(title, color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface) },
+        supportingContent = { Text(detail) },
+        leadingContent = { Icon(icon, contentDescription = null, tint = tint) },
+        trailingContent = trailing,
+        modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
+    )
+}
+
+@Composable
 fun SettingsScreen(app: Easy2642App, onOpenHarness: (() -> Unit)?) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -67,6 +120,10 @@ fun SettingsScreen(app: Easy2642App, onOpenHarness: (() -> Unit)?) {
     var confirmBackup by remember { mutableStateOf(false) }
     var confirmImport by remember { mutableStateOf<Uri?>(null) }
     var confirmClear by remember { mutableStateOf(false) }
+    var pickOutput by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val privacyText = stringResource(R.string.privacy_summary)
+    val disclaimerText = stringResource(R.string.disclaimer)
 
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -91,64 +148,92 @@ fun SettingsScreen(app: Easy2642App, onOpenHarness: (() -> Unit)?) {
         topBar = { TopAppBar(title = { Text("Settings") }) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            SectionTitle("Claims folder")
-            Text(
-                folderLabel(app, folder)?.let { "Packets can be saved straight to \"$it\"." }
-                    ?: "Optional. Pick a folder (device, SD card or a cloud drive app) to save packets with one tap.",
-                style = MaterialTheme.typography.bodyMedium,
+        Column(Modifier.padding(padding).verticalScroll(rememberScrollState())) {
+            SettingsGroup("Saving claims")
+            SettingsRow(
+                Icons.Filled.Description, "Default output",
+                if (outputMode == OutputMode.COMBINED) "One combined PDF" else "Separate form, bill and receipt files",
+                onClick = { pickOutput = true },
             )
-            OutlinedButton(onClick = { pickFolder.launch(folder) }, modifier = Modifier.padding(top = 8.dp)) {
-                Text(if (folder == null) "Choose claims folder" else "Change claims folder")
-            }
-            if (folder != null) {
-                TextButton(onClick = { app.settings.claimsFolder = null; folder = null }) { Text("Stop using this folder") }
-            }
-
-            SectionTitle("Saving claims")
-            ChoiceChips("Default output", OutputMode.entries, outputMode, { it.label }) { m ->
-                if (m != null) {
-                    app.settings.outputMode = m
-                    outputMode = m
-                }
-            }
-            Text(
-                if (outputMode == OutputMode.COMBINED) "The form, bill and receipts go into one PDF. You can still switch per claim."
-                else "The DD 2642, the bill and the receipt / proof of payment are saved as three PDFs. You can still switch per claim.",
-                style = MaterialTheme.typography.bodySmall,
+            SettingsRow(
+                Icons.Filled.Folder, "Claims folder",
+                folderLabel(app, folder) ?: "Not set. Choose one to save with a single tap",
+                onClick = { pickFolder.launch(folder) },
+                trailing = if (folder == null) null else ({
+                    IconButton(onClick = { app.settings.claimsFolder = null; folder = null }) {
+                        Icon(Icons.Filled.Clear, contentDescription = "Stop using this folder")
+                    }
+                }),
             )
 
-            SectionTitle("Your data")
-            OutlinedButton(onClick = { confirmBackup = true }) { Text("Export Backup") }
-            OutlinedButton(onClick = { openBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }, modifier = Modifier.padding(top = 8.dp)) {
-                Text("Restore from backup")
-            }
-            OutlinedButton(
-                onClick = { confirmClear = true },
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                modifier = Modifier.padding(top = 8.dp),
-            ) { Text("Clear All Local Data") }
+            SettingsGroup("Your data")
+            SettingsRow(Icons.Filled.Upload, "Export backup", "Save profiles and claims to a file", onClick = { confirmBackup = true })
+            SettingsRow(
+                Icons.Filled.Download, "Restore from backup", "Replace everything with a backup file",
+                onClick = { openBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
+            )
+            SettingsRow(
+                Icons.Filled.DeleteForever, "Clear all local data", "Erase profiles, claims, signatures and settings",
+                onClick = { confirmClear = true }, danger = true,
+            )
 
-            SectionTitle("Privacy")
-            Text(stringResource(R.string.privacy_summary), style = MaterialTheme.typography.bodyMedium)
-            SectionTitle("Disclaimer")
-            Text(stringResource(R.string.disclaimer), style = MaterialTheme.typography.bodyMedium)
-
-            SectionTitle("About the author")
-            Text("2642 Easy is made by Apps by Dan.", style = MaterialTheme.typography.bodyMedium)
-            OutlinedButton(onClick = { openUrl(context, Links.AUTHOR) }, modifier = Modifier.padding(top = 8.dp)) { Text("Visit appsbydan.com") }
-            OutlinedButton(onClick = { openUrl(context, Links.TIP) }, modifier = Modifier.padding(top = 8.dp)) { Text("Tip the developer") }
-            Text("Both open in your browser. Tips are optional and unlock nothing.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-
-            SectionTitle("About")
-            Text("2642 Easy ${BuildConfig.VERSION_NAME} · Prepares DD Form 2642 (SEP 2024 edition)", style = MaterialTheme.typography.bodyMedium)
+            SettingsGroup("About")
+            SettingsRow(Icons.Filled.Lock, "Privacy", "Nothing leaves this device unless you send it", onClick = { info = "Privacy" to privacyText })
+            SettingsRow(Icons.Filled.Info, "Disclaimer", "Independent tool, not affiliated with TRICARE, DHA or DoD", onClick = { info = "Disclaimer" to disclaimerText })
+            SettingsRow(Icons.Filled.Person, "About the author", "appsbydan.com", onClick = { openUrl(context, Links.AUTHOR) })
+            SettingsRow(Icons.Filled.Favorite, "Tip the developer", "Optional. Opens in your browser", onClick = { openUrl(context, Links.TIP) })
             if (onOpenHarness != null) {
-                TextButton(onClick = onOpenHarness) { Text("Form engine test harness (debug builds only)") }
+                SettingsRow(Icons.Filled.BugReport, "Form engine test harness", "Debug builds only", onClick = onOpenHarness)
             }
-            Spacer(Modifier.height(24.dp))
+            Text(
+                "2642 Easy ${BuildConfig.VERSION_NAME} · DD Form 2642, SEP 2024 edition",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp),
+            )
         }
     }
 
+    if (pickOutput) {
+        AlertDialog(
+            onDismissRequest = { pickOutput = false },
+            title = { Text("Default output") },
+            text = {
+                Column {
+                    OutputMode.entries.forEach { m ->
+                        Row(
+                            Modifier.fillMaxWidth().selectable(outputMode == m, role = Role.RadioButton) {
+                                app.settings.outputMode = m
+                                outputMode = m
+                                pickOutput = false
+                            }.padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = outputMode == m, onClick = null)
+                            Column(Modifier.padding(start = 12.dp)) {
+                                Text(m.label)
+                                Text(
+                                    if (m == OutputMode.COMBINED) "Form, bill and receipts in one file"
+                                    else "DD 2642, bill and receipt / proof of payment as three files",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                    }
+                    Text("You can still switch for an individual claim on its review step.", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp))
+                }
+            },
+            confirmButton = { TextButton(onClick = { pickOutput = false }) { Text("Close") } },
+        )
+    }
+    info?.let { (title, body) ->
+        AlertDialog(
+            onDismissRequest = { info = null },
+            title = { Text(title) },
+            text = { Text(body, Modifier.verticalScroll(rememberScrollState())) },
+            confirmButton = { TextButton(onClick = { info = null }) { Text("Close") } },
+        )
+    }
     if (confirmBackup) {
         AlertDialog(
             onDismissRequest = { confirmBackup = false },
