@@ -78,6 +78,8 @@ They come from a headless desktop Chromium emulating a phone, so the embedded PD
 
 `.github/workflows/web.yml` tests and builds on every push that touches `web/`, and publishes `web/dist` to GitHub Pages from `main`. One-time setup: repository **Settings → Pages → Build and deployment → Source: GitHub Actions**. The site then appears at `https://crazyh1803.github.io/Easy2642/`.
 
+The Source setting must be **GitHub Actions**, not "Deploy from a branch". Branch mode publishes the repository's files as they are, so the address shows the README instead of the app, and it blocks this workflow's deployment. To publish on demand, use **Actions → Web app → Run workflow** on `main`.
+
 The camera only works over HTTPS (GitHub Pages provides it) or on `localhost`.
 
 To host elsewhere, upload the contents of `web/dist` after `npm run build`; paths are relative, so any folder works.
