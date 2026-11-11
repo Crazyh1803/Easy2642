@@ -35,7 +35,7 @@ Settings links to `https://buymeacoffee.com/AppsbyDan`, and a dismissible remind
 
 | Item | Answer |
 | --- | --- |
-| Privacy policy URL | Public URL where `docs/privacy-policy.md` is hosted |
+| Privacy policy URL | `https://github.com/Crazyh1803/Easy2642/blob/main/PRIVACY.md` (works while the repository is public) |
 | Ads | No ads |
 | App access | All functionality available without login |
 | Target audience | 18 and over |

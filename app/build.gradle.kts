@@ -72,6 +72,11 @@ android {
             it.maxHeapSize = "2g"
             // -PpdfOutDir=<dir> keeps the PDFs the tests generate, for visual inspection.
             (project.findProperty("pdfOutDir") as String?)?.let { dir -> it.systemProperty("easy2642.outDir", dir) }
+            // -PscreenshotDir=<dir> renders the store screenshots (StoreScreenshots test) into that folder.
+            (project.findProperty("screenshotDir") as String?)?.let { dir ->
+                it.systemProperty("easy2642.screenshotDir", rootProject.file(dir).absolutePath)
+                it.systemProperty("roborazzi.test.record", "true")
+            }
         }
     }
     lint {
@@ -122,6 +127,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.coroutines.test)
 }

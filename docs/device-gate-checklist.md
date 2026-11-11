@@ -71,6 +71,7 @@ Install a debug build: `./gradlew :app:installDebug`
 - [ ] Run the release setup launcher for your system (see README), back up `upload-keystore.jks` and its password, and upload the `.aab` to the internal testing track.
 - [ ] Smoke-test the release build end to end: R8 shrinking is enabled and only the debug build has been exercised by automated tests.
 - [ ] Pre-launch report shows no policy or stability issues.
-- [ ] Privacy policy is published at a public URL and linked in the listing.
+- [ ] The privacy policy link (`https://github.com/Crazyh1803/Easy2642/blob/main/PRIVACY.md`) opens in a private browser window and is entered in the listing.
+- [ ] Settings → Privacy → Read the full policy opens the same page.
 - [ ] Data safety and Health apps declarations entered as in `docs/play-console.md`.
 - [ ] Screenshots reviewed: synthetic data only, no official logos or insignia.

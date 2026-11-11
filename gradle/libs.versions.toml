@@ -16,6 +16,7 @@ coroutines = "1.9.0"
 documentfile = "1.0.1"
 junit = "4.13.2"
 robolectric = "4.14.1"
+roborazzi = "1.36.0"
 androidxTest = "1.6.1"
 
 [libraries]
@@ -42,6 +43,7 @@ coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", ve
 documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 junit = { module = "junit:junit", version.ref = "junit" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTest" }
 
 [plugins]

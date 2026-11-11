@@ -68,6 +68,7 @@ import kotlinx.coroutines.withContext
 object Links {
     const val AUTHOR = "https://appsbydan.com/"
     const val TIP = "https://buymeacoffee.com/AppsbyDan"
+    const val PRIVACY = "https://github.com/Crazyh1803/Easy2642/blob/main/PRIVACY.md"
 }
 
 /** Hands a link to the user's browser. The app itself has no network access. */
@@ -232,6 +233,9 @@ fun SettingsScreen(app: Easy2642App, onOpenHarness: (() -> Unit)?) {
             title = { Text(title) },
             text = { Text(body, Modifier.verticalScroll(rememberScrollState())) },
             confirmButton = { TextButton(onClick = { info = null }) { Text("Close") } },
+            dismissButton = if (title != "Privacy") null else ({
+                TextButton(onClick = { openUrl(context, Links.PRIVACY) }) { Text("Read the full policy") }
+            }),
         )
     }
     if (confirmBackup) {

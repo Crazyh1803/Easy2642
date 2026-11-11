@@ -249,6 +249,9 @@ fun DisclaimerFooter(modifier: Modifier = Modifier) {
     }
 }
 
+/** Turns PDF pages into bitmaps for the preview. Tests swap this where the platform renderer is unavailable. */
+var pdfRasterizer: (File, Int, Int) -> List<Bitmap> = ::renderPdf
+
 fun renderPdf(file: File, widthPx: Int, maxPages: Int): List<Bitmap> =
     ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
         PdfRenderer(pfd).use { renderer ->
@@ -269,7 +272,7 @@ fun renderPdf(file: File, widthPx: Int, maxPages: Int): List<Bitmap> =
 fun PdfPreview(file: File, version: Any?, modifier: Modifier = Modifier, maxPages: Int = 8) {
     var pages by remember(file, version) { mutableStateOf<List<Bitmap>?>(null) }
     LaunchedEffect(file, version) {
-        pages = withContext(Dispatchers.IO) { runCatching { renderPdf(file, 1100, maxPages) }.getOrDefault(emptyList()) }
+        pages = withContext(Dispatchers.IO) { runCatching { pdfRasterizer(file, 1100, maxPages) }.getOrDefault(emptyList()) }
     }
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         when (val p = pages) {

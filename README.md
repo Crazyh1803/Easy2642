@@ -30,7 +30,8 @@ Settings links to the author's site and an optional tip page, and a tip reminder
 | `app/…/data/` | Room entities and DAOs, `SecureDatabase` and `KeystorePassphrase`, repository, backup |
 | `app/…/ui/` | Compose screens: dashboard, family profiles, claim wizard with signature pad, settings, debug-only form harness |
 | `app/src/main/assets/forms/dd2642_template.pdf` | The official form with its XFA layer and owner-password restrictions removed by `tools/prepare_template.py` |
-| `docs/` | Privacy policy, Play Console answers and store text, device gate checklist |
+| `PRIVACY.md` | Privacy policy, linked from the Play listing and from Settings in the app |
+| `docs/` | Play Console answers and store text, device gate checklist |
 
 ## About the form
 
@@ -90,6 +91,14 @@ keyPassword=…
 ```
 
 Without that file the bundle is built unsigned.
+
+### Store screenshots
+
+`docs/store/screenshots/` holds eight 1080 x 1920 screenshots for the Play listing. They are rendered from the app's real screens with made-up data by the `StoreScreenshots` test, without a device, so they show the app content only (no status bar, tab bar or disclaimer strip). Regenerate them after UI changes:
+
+```bash
+./gradlew :app:testDebugUnitTest --tests '*StoreScreenshots*' -PscreenshotDir=docs/store/screenshots
+```
 
 ## What still needs a real device
 
