@@ -53,7 +53,7 @@ Say "Looking for the Android SDK"
 $Sdk = $env:ANDROID_HOME
 if (-not $Sdk) { $Sdk = $env:ANDROID_SDK_ROOT }
 if (-not $Sdk) { $Sdk = "$env:LOCALAPPDATA\Android\Sdk" }
-if (-not (Test-Path "$Sdk\platforms\android-35") -or -not (Test-Path "$Sdk\build-tools\34.0.0")) {
+if (-not (Test-Path "$Sdk\platforms\android-36") -or -not (Test-Path "$Sdk\build-tools\35.0.0")) {
     Write-Host "Installing the SDK pieces this project needs into $Sdk (about 250 MB download)"
     $manager = "$Sdk\cmdline-tools\latest\bin\sdkmanager.bat"
     if (-not (Test-Path $manager)) {
@@ -68,9 +68,9 @@ if (-not (Test-Path "$Sdk\platforms\android-35") -or -not (Test-Path "$Sdk\build
         Remove-Item -Recurse -Force $tmp
     }
     # Answer "y" to each licence prompt.
-    (1..40 | ForEach-Object { 'y' }) | & $manager "platforms;android-35" "build-tools;34.0.0" "platform-tools" | Out-Null
+    (1..40 | ForEach-Object { 'y' }) | & $manager "platforms;android-36" "build-tools;35.0.0" "platform-tools" | Out-Null
 }
-if (-not (Test-Path "$Sdk\platforms\android-35")) { Fail "The Android SDK could not be installed at $Sdk." }
+if (-not (Test-Path "$Sdk\platforms\android-36")) { Fail "The Android SDK could not be installed at $Sdk." }
 Write-Host "Using Android SDK at $Sdk"
 # local.properties needs forward slashes (or doubled backslashes).
 [IO.File]::WriteAllText("$Root\local.properties", "sdk.dir=" + ($Sdk -replace '\\', '/') + "`n")

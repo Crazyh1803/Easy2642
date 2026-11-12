@@ -6,6 +6,8 @@ on:
     paths: ['web/**', 'app/src/main/assets/forms/**', 'docs/store/icon-512.png', '.github/workflows/web.yml']
   pull_request:
     paths: ['web/**', 'app/src/main/assets/forms/**', 'docs/store/icon-512.png', '.github/workflows/web.yml']
+  # Adds a "Run workflow" button under Actions > Web app, to publish on demand.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -49,7 +51,7 @@ jobs:
   # Publishes to GitHub Pages from main only. Requires Pages to be enabled once:
   # repository Settings > Pages > Build and deployment > Source: "GitHub Actions".
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     permissions:
