@@ -59,6 +59,6 @@ The app is intended for adult sponsors and family members preparing claims. Info
 
 ## Changes and contact
 
-Changes to this policy will be published at this address with a new effective date.
+This policy is published at <https://crazyh1803.github.io/Easy2642/privacy.html>. Changes will be published at that address with a new effective date.
 
 Questions about this policy or the app: contact Apps by Dan through <https://appsbydan.com/>.

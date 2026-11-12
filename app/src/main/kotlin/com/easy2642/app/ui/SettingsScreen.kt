@@ -68,7 +68,7 @@ import kotlinx.coroutines.withContext
 object Links {
     const val AUTHOR = "https://appsbydan.com/"
     const val TIP = "https://buymeacoffee.com/AppsbyDan"
-    const val PRIVACY = "https://github.com/Crazyh1803/Easy2642/blob/main/PRIVACY.md"
+    const val PRIVACY = "https://crazyh1803.github.io/Easy2642/privacy.html"
 }
 
 /** Hands a link to the user's browser. The app itself has no network access. */

@@ -254,6 +254,13 @@ try {
   const nextBox = await button('Next').boundingBox();
   check(nextBox && nextBox.y + nextBox.height <= 844, 'Next button is on screen at phone size');
 
+  // ---- published privacy policy page (Play needs a read-only URL)
+  await page.goto(`${URL_BASE}privacy.html`);
+  check(await page.getByRole('heading', { level: 1, name: '2642 Easy Privacy Policy' }).isVisible(), 'privacy.html shows the policy title');
+  check(await page.getByRole('heading', { level: 2, name: 'Web version' }).isVisible(), 'privacy.html includes the web section');
+  check(await page.locator('table td').count() > 0, 'privacy.html renders the storage table');
+  check((await page.locator('script').count()) === 0, 'privacy.html has no scripts');
+
   check(foreign.length === 0, `no requests left the site (${foreign.join(', ') || 'none'})`);
   check(problems.length === 0, `no console errors or CSP violations (${problems.join(' | ') || 'none'})`);
 } catch (e) {

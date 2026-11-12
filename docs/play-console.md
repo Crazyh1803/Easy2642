@@ -35,7 +35,7 @@ Settings links to `https://buymeacoffee.com/AppsbyDan`, and a dismissible remind
 
 | Item | Answer |
 | --- | --- |
-| Privacy policy URL | `https://github.com/Crazyh1803/Easy2642/blob/main/PRIVACY.md` (works while the repository is public) |
+| Privacy policy URL | `https://crazyh1803.github.io/Easy2642/privacy.html` — a read-only page generated from `PRIVACY.md` and published with the web app. Do not use the github.com file view: Play rejects it because it is editable |
 | Ads | No ads |
 | App access | All functionality available without login |
 | Target audience | 18 and over |

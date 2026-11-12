@@ -144,5 +144,5 @@ export const PRIVACY_SUMMARY =
 export const LINKS = {
   author: 'https://appsbydan.com/',
   tip: 'https://buymeacoffee.com/AppsbyDan',
-  privacy: 'https://github.com/Crazyh1803/Easy2642/blob/main/PRIVACY.md',
+  privacy: './privacy.html',
 };

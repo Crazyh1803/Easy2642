@@ -3,9 +3,9 @@ name: Web app
 on:
   push:
     branches: [main, web]
-    paths: ['web/**', 'app/src/main/assets/forms/**', 'docs/store/icon-512.png', '.github/workflows/web.yml']
+    paths: ['web/**', 'app/src/main/assets/forms/**', 'docs/store/icon-512.png', 'PRIVACY.md', '.github/workflows/web.yml']
   pull_request:
-    paths: ['web/**', 'app/src/main/assets/forms/**', 'docs/store/icon-512.png', '.github/workflows/web.yml']
+    paths: ['web/**', 'app/src/main/assets/forms/**', 'docs/store/icon-512.png', 'PRIVACY.md', '.github/workflows/web.yml']
   # Adds a "Run workflow" button under Actions > Web app, to publish on demand.
   workflow_dispatch:
 
