@@ -60,6 +60,10 @@ npm run e2e
 
 `npm test` covers the form mapping, PDF output, packet building, encryption and backup parsing. `npm run e2e` drives the built site in Chromium with a fake camera through the whole flow: passcode, profiles, a claim with a camera capture and uploads, signing, both output modes, the tracker, lock/unlock, backup, erase and restore. It needs Playwright (`npm install --no-save playwright && npx playwright install chromium`). Screenshots and the generated PDFs land in `e2e/out/`.
 
+## Privacy policy page
+
+`scripts/sync-template.mjs` renders the repository's `PRIVACY.md` into `public/privacy.html` on every dev run, test and build, so the published site always carries the current policy at `https://crazyh1803.github.io/Easy2642/privacy.html`. That read-only page is the URL to give Google Play. Edit `PRIVACY.md`, never the generated page.
+
 ## Screenshots
 
 `docs/store/web-screenshots-phone/` holds ten phone-sized screenshots (1170 x 2532) with made-up data. Regenerate them after UI changes:
