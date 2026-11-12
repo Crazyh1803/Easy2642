@@ -45,7 +45,7 @@ When DoD publishes a new edition, run `python3 tools/prepare_template.py <new.pd
 
 ## Build and test
 
-Requires JDK 17 or later and the Android SDK (platform 35).
+Requires JDK 17 or later and the Android SDK (platform 36).
 
 ```bash
 ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug

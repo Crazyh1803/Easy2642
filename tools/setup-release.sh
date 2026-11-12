@@ -54,7 +54,7 @@ echo "Using Java $major at $JAVA_HOME"
 # ---------------------------------------------------------------- 2. Android SDK
 say "Looking for the Android SDK"
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$DEFAULT_SDK}}"
-if [ ! -d "$SDK/platforms/android-35" ] || [ ! -d "$SDK/build-tools/34.0.0" ]; then
+if [ ! -d "$SDK/platforms/android-36" ] || [ ! -d "$SDK/build-tools/35.0.0" ]; then
   echo "Installing the SDK pieces this project needs into $SDK (about 250 MB download)"
   MANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
   if [ ! -x "$MANAGER" ]; then
@@ -68,9 +68,9 @@ if [ ! -d "$SDK/platforms/android-35" ] || [ ! -d "$SDK/build-tools/34.0.0" ]; t
   fi
   # ${SETUP_SDKMANAGER_ARGS} is only for networks that need a proxy; normally empty.
   # shellcheck disable=SC2086
-  (yes || true) | "$MANAGER" ${SETUP_SDKMANAGER_ARGS:-} "platforms;android-35" "build-tools;34.0.0" "platform-tools" >/dev/null
+  (yes || true) | "$MANAGER" ${SETUP_SDKMANAGER_ARGS:-} "platforms;android-36" "build-tools;35.0.0" "platform-tools" >/dev/null
 fi
-[ -d "$SDK/platforms/android-35" ] || fail "The Android SDK could not be installed at $SDK."
+[ -d "$SDK/platforms/android-36" ] || fail "The Android SDK could not be installed at $SDK."
 echo "Using Android SDK at $SDK"
 printf 'sdk.dir=%s\n' "$SDK" > "$ROOT/local.properties"
 
